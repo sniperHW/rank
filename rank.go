@@ -5,7 +5,6 @@ import (
 )
 
 var maxItemCount int = 100
-var searchSetp int
 
 type rankItemBlock struct {
 	items    []rankItem
@@ -114,7 +113,7 @@ func (c *span) remove(item *rankItem) {
 	c.fixMinMax()
 }
 
-func (c *span) update(item *rankItem, change int) {
+func (c *span) update(item *rankItem, change int) int {
 
 	p := item.pprev
 	n := item.pnext
@@ -124,7 +123,7 @@ func (c *span) update(item *rankItem, change int) {
 	if change > 0 {
 		//积分增加往前移动
 		if p == &c.head {
-			return
+			return 1
 		}
 
 		p.pnext = n
@@ -134,7 +133,6 @@ func (c *span) update(item *rankItem, change int) {
 			if p.score >= item.score {
 				break
 			} else {
-				searchSetp++
 				p = p.pprev
 			}
 		}
@@ -152,7 +150,7 @@ func (c *span) update(item *rankItem, change int) {
 	} else {
 		//积分减少往后移
 		if n == &c.tail {
-			return
+			return c.count
 		}
 
 		p.pnext = n
@@ -162,7 +160,6 @@ func (c *span) update(item *rankItem, change int) {
 			if n.score <= item.score {
 				break
 			} else {
-				searchSetp++
 				n = n.pnext
 			}
 		}
@@ -179,6 +176,28 @@ func (c *span) update(item *rankItem, change int) {
 	}
 
 	c.fixMinMax()
+
+	count := 0
+	pprev := item.pprev
+	pnext := item.pnext
+	for {
+		if pprev == &c.head {
+			count += 1
+			break
+		}
+
+		if pnext == &c.tail {
+			count = c.count - count
+			break
+		}
+
+		pprev = pprev.pprev
+		pnext = pnext.pnext
+		count++
+	}
+
+	return count
+
 }
 
 func (c *span) down(item *rankItem) *rankItem {
@@ -207,28 +226,35 @@ func (c *span) down(item *rankItem) *rankItem {
 
 }
 
-func (c *span) add(item *rankItem) *rankItem {
+func (c *span) add(item *rankItem) (*rankItem, int) {
 
 	c.count++
 	item.c = c
 	//寻找合适的插入位置
 	var cc *rankItem
 
+	realRank := 0
+	count := 0
+
 	front := c.head.pnext
 	back := c.tail.pprev
 	for {
 		if front.score <= item.score {
 			cc = front
+			realRank = count + 1
 			break
 		} else if back.score >= item.score {
 			cc = back.pnext
+			realRank = c.count - count
 			break
 		} else if back.pprev.score >= item.score && back.score <= item.score {
 			cc = back
+			realRank = c.count - count - 1
 			break
 		}
 		front = front.pnext
 		back = back.pprev
+		count++
 	}
 
 	//插入到cc前
@@ -246,13 +272,16 @@ func (c *span) add(item *rankItem) *rankItem {
 		r = c.tail.pprev
 		r.pprev.pnext = &c.tail
 		c.tail.pprev = r.pprev
+		if item == r {
+			realRank = 1
+		}
 		//r.pprev = nil
 		//r.pnext = nil
 	}
 
 	c.fixMinMax()
 
-	return r
+	return r, realRank
 }
 
 func (c *span) fixMinMax() {
@@ -284,14 +313,14 @@ type Rank struct {
 func NewRank() *Rank {
 	return &Rank{
 		id2Item:  map[uint64]*rankItem{},
-		spans:    make([]*span, 0, 65536/2),
+		spans:    make([]*span, 0, 65536),
 		itemPool: newRankItemPool(),
 	}
 }
 
 func (r *Rank) Reset() {
 	r.id2Item = map[uint64]*rankItem{}
-	r.spans = make([]*span, 0, 65536/2)
+	r.spans = make([]*span, 0, 65536)
 	r.itemPool.reset()
 }
 
@@ -304,44 +333,46 @@ func (r *Rank) GetPercentRank(id uint64) int {
 	}
 }
 
+func (r *Rank) getExactRank(item *rankItem) int {
+	c := 0
+	if item.c.idx < 100 {
+		//down规则保证了前100个span必定不存在空隙
+		for i := 0; i < item.c.idx; i++ {
+			c += r.spans[i].count
+		}
+	} else {
+		c = 100 * item.c.idx
+	}
+
+	count := 0
+	cc := item.c
+	pprev := item.pprev
+	pnext := item.pnext
+	for {
+		if pprev == &cc.head {
+			c += count + 1
+			break
+		}
+
+		if pnext == &cc.tail {
+			c += cc.count - count
+			break
+		}
+
+		pprev = pprev.pprev
+		pnext = pnext.pnext
+		count++
+	}
+
+	return c
+}
+
 func (r *Rank) GetExactRank(id uint64) int {
 	item := r.getRankItem(id)
 	if nil == item {
 		return -1
 	} else {
-		c := 0
-		if item.c.idx < 100 {
-			//down规则保证了前100个span必定不存在空隙
-			for i := 0; i < item.c.idx; i++ {
-				c += r.spans[i].count
-			}
-		} else {
-			c = 100 * item.c.idx
-		}
-
-		prevCount := 1
-		nextCount := 0
-		cc := item.c
-		pprev := item.pprev
-		pnext := item.pnext
-		for {
-			if pprev == &cc.head {
-				c += prevCount
-				break
-			}
-
-			if pnext == &cc.tail {
-				c += cc.count - nextCount
-				break
-			}
-
-			pprev = pprev.pprev
-			pnext = pnext.pnext
-			prevCount++
-			nextCount++
-		}
-
-		return c
+		return r.getExactRank(item)
 	}
 }
 
@@ -400,8 +431,9 @@ func (r *Rank) findSpan(score int) *span {
 	return c
 }
 
-func (r *Rank) UpdateScore(id uint64, score int) {
+func (r *Rank) UpdateScore(id uint64, score int) int {
 	var change int
+	var realRank int
 	item := r.getRankItem(id)
 	if nil == item {
 		item = r.itemPool.get()
@@ -411,7 +443,7 @@ func (r *Rank) UpdateScore(id uint64, score int) {
 		r.id2Item[id] = item
 	} else {
 		if item.score == score {
-			return
+			return r.getExactRank(item)
 		}
 
 		if item.score > score {
@@ -426,7 +458,7 @@ func (r *Rank) UpdateScore(id uint64, score int) {
 	c := r.findSpan(score)
 
 	if c == item.c {
-		c.update(item, change)
+		realRank = c.update(item, change)
 	} else {
 
 		oldC := item.c
@@ -435,7 +467,9 @@ func (r *Rank) UpdateScore(id uint64, score int) {
 			item.c.remove(item)
 		}
 
-		if downItem := c.add(item); nil != downItem {
+		var downItem *rankItem
+
+		if downItem, realRank = c.add(item); nil != downItem {
 
 			downCount := 0
 			downIdx := c.idx
@@ -498,4 +532,16 @@ func (r *Rank) UpdateScore(id uint64, score int) {
 			r.spans = r.spans[:len(r.spans)-1]
 		}
 	}
+
+	if item.c.idx < 100 {
+		//down规则保证了前100个span必定不存在空隙
+		for i := 0; i < item.c.idx; i++ {
+			realRank += r.spans[i].count
+		}
+	} else {
+		realRank += 100 * item.c.idx
+	}
+
+	return realRank
+
 }

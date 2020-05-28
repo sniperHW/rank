@@ -91,13 +91,15 @@ func TestRank(t *testing.T) {
 			r.UpdateScore(uint64(idx), score)
 		}
 
-		r.UpdateScore(uint64(150), 150)
+		fmt.Println(r.UpdateScore(uint64(150), 150))
 
 		r.UpdateScore(uint64(150), 10)
 
 		r.Show()
 
 		assert.Equal(t, true, r.Check())
+
+		fmt.Println(r.UpdateScore(uint64(150), 10))
 
 		r.Reset()
 
