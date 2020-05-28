@@ -3,6 +3,7 @@ package rank
 //go test -covermode=count -v -coverprofile=coverage.out -run=. -cpuprofile=rank.p
 //go tool cover -html=coverage.out
 //go tool pprof rank.p
+//go test -v -run=^$ -bench BenchmarkRank -count 10
 
 import (
 	"fmt"
@@ -28,6 +29,8 @@ func TestBenchmarkRank(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
+		fmt.Println(len(r.spans))
+		assert.Equal(t, true, r.Check())
 	}
 
 	{
@@ -41,6 +44,8 @@ func TestBenchmarkRank(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
+		fmt.Println(len(r.spans))
+		assert.Equal(t, true, r.Check())
 
 	}
 
@@ -68,6 +73,8 @@ func TestRank(t *testing.T) {
 		r.UpdateScore(uint64(150), 10)
 
 		r.Show()
+
+		assert.Equal(t, true, r.Check())
 
 		r.Reset()
 
@@ -98,6 +105,7 @@ func TestRank(t *testing.T) {
 		assert.Equal(t, 0, r.GetPercentRank(uint64(lastItem.id)))
 
 	}
+
 }
 
 func BenchmarkRank(b *testing.B) {

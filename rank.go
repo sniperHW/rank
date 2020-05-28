@@ -181,7 +181,7 @@ func (c *span) update(item *rankItem, change int) {
 	c.fixMinMax()
 }
 
-func (c *span) down(item *rankItem) {
+func (c *span) down(item *rankItem) *rankItem {
 	c.count++
 	item.c = c
 
@@ -192,7 +192,18 @@ func (c *span) down(item *rankItem) {
 	n.pprev = item
 	item.pnext = n
 
+	var r *rankItem
+
+	if c.count > maxItemCount {
+		c.count--
+		//最后一个元素
+		r = c.tail.pprev
+		r.pprev.pnext = &c.tail
+		c.tail.pprev = r.pprev
+	}
+
 	c.fixMinMax()
+	return r
 
 }
 
@@ -404,41 +415,54 @@ func (r *Rank) UpdateScore(id uint64, score int) {
 		}
 
 		if downItem := c.add(item); nil != downItem {
-			downIdx := c.idx + 1
-			if downIdx >= len(r.spans) {
-				r.spans = append(r.spans, newSpan(downIdx))
-			} else if r.spans[downIdx].count >= maxItemCount {
 
-				if len(r.spans) < cap(r.spans) {
-					//还有空间,扩张containers,将downIdx开始的元素往后挪一个位置，空出downIdx所在位置
-					l := len(r.spans)
-					r.spans = r.spans[:len(r.spans)+1]
-					for i := l - 1; i >= downIdx; i-- {
-						r.spans[i+1] = r.spans[i]
-						r.spans[i+1].idx = i + 1
+			downCount := 0
+			downIdx := c.idx
+
+			for nil != downItem {
+				downIdx++
+				downCount++
+				if downCount >= 15 {
+					if downIdx >= len(r.spans) {
+						r.spans = append(r.spans, newSpan(downIdx))
+					} else if r.spans[downIdx].count >= maxItemCount {
+
+						if len(r.spans) < cap(r.spans) {
+							//还有空间,扩张containers,将downIdx开始的元素往后挪一个位置，空出downIdx所在位置
+							l := len(r.spans)
+							r.spans = r.spans[:len(r.spans)+1]
+							for i := l - 1; i >= downIdx; i-- {
+								r.spans[i+1] = r.spans[i]
+								r.spans[i+1].idx = i + 1
+							}
+							r.spans[downIdx] = newSpan(downIdx)
+
+						} else {
+							//下一个container满了，新建一个
+							spans := make([]*span, 0, len(r.spans)+1)
+							for i := 0; i <= c.idx; i++ {
+								spans = append(spans, r.spans[i])
+							}
+
+							spans = append(spans, newSpan(len(spans)))
+
+							for i := downIdx; i < len(r.spans); i++ {
+								c = r.spans[i]
+								c.idx = len(spans)
+								spans = append(spans, c)
+							}
+
+							r.spans = spans
+						}
 					}
-					r.spans[downIdx] = newSpan(downIdx)
-
 				} else {
-					//下一个container满了，新建一个
-					spans := make([]*span, 0, len(r.spans)+1)
-					for i := 0; i <= c.idx; i++ {
-						spans = append(spans, r.spans[i])
+					if downIdx >= len(r.spans) {
+						r.spans = append(r.spans, newSpan(downIdx))
 					}
-
-					spans = append(spans, newSpan(len(spans)))
-
-					for i := downIdx; i < len(r.spans); i++ {
-						c = r.spans[i]
-						c.idx = len(spans)
-						spans = append(spans, c)
-					}
-
-					r.spans = spans
 				}
-			}
 
-			r.spans[downIdx].down(downItem)
+				downItem = r.spans[downIdx].down(downItem)
+			}
 		}
 
 		if nil != oldC && oldC.count == 0 {
@@ -452,6 +476,5 @@ func (r *Rank) UpdateScore(id uint64, score int) {
 			r.spans[len(r.spans)-1] = nil
 			r.spans = r.spans[:len(r.spans)-1]
 		}
-
 	}
 }
