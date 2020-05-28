@@ -284,14 +284,14 @@ type Rank struct {
 func NewRank() *Rank {
 	return &Rank{
 		id2Item:  map[uint64]*rankItem{},
-		spans:    make([]*span, 0, 65536),
+		spans:    make([]*span, 0, 65536/2),
 		itemPool: newRankItemPool(),
 	}
 }
 
 func (r *Rank) Reset() {
 	r.id2Item = map[uint64]*rankItem{}
-	r.spans = make([]*span, 0, 65536)
+	r.spans = make([]*span, 0, 65536/2)
 	r.itemPool.reset()
 }
 
@@ -310,16 +310,37 @@ func (r *Rank) GetExactRank(id uint64) int {
 		return -1
 	} else {
 		c := 0
-		for i := 0; i < item.c.idx; i++ {
-			c += r.spans[i].count
+		if item.c.idx < 100 {
+			//down规则保证了前100个span必定不存在空隙
+			for i := 0; i < item.c.idx; i++ {
+				c += r.spans[i].count
+			}
+		} else {
+			c = 100 * item.c.idx
 		}
 
+		prevCount := 1
+		nextCount := 0
 		cc := item.c
-		cur := item
-		for cur != &cc.head {
-			c++
-			cur = cur.pprev
+		pprev := item.pprev
+		pnext := item.pnext
+		for {
+			if pprev == &cc.head {
+				c += prevCount
+				break
+			}
+
+			if pnext == &cc.tail {
+				c += cc.count - nextCount
+				break
+			}
+
+			pprev = pprev.pprev
+			pnext = pnext.pnext
+			prevCount++
+			nextCount++
 		}
+
 		return c
 	}
 }
@@ -422,7 +443,12 @@ func (r *Rank) UpdateScore(id uint64, score int) {
 			for nil != downItem {
 				downIdx++
 				downCount++
-				if downCount >= 15 {
+				if downIdx < 100 || downCount <= 15 {
+					if downIdx >= len(r.spans) {
+						r.spans = append(r.spans, newSpan(downIdx))
+					}
+				} else {
+					//超过down次数，创建一个新的span接纳下降item终止下降过程
 					if downIdx >= len(r.spans) {
 						r.spans = append(r.spans, newSpan(downIdx))
 					} else if r.spans[downIdx].count >= maxItemCount {
@@ -440,14 +466,14 @@ func (r *Rank) UpdateScore(id uint64, score int) {
 						} else {
 							//下一个container满了，新建一个
 							spans := make([]*span, 0, len(r.spans)+1)
-							for i := 0; i <= c.idx; i++ {
+							for i := 0; i <= downIdx-1; i++ {
 								spans = append(spans, r.spans[i])
 							}
 
 							spans = append(spans, newSpan(len(spans)))
 
 							for i := downIdx; i < len(r.spans); i++ {
-								c = r.spans[i]
+								c := r.spans[i]
 								c.idx = len(spans)
 								spans = append(spans, c)
 							}
@@ -455,12 +481,7 @@ func (r *Rank) UpdateScore(id uint64, score int) {
 							r.spans = spans
 						}
 					}
-				} else {
-					if downIdx >= len(r.spans) {
-						r.spans = append(r.spans, newSpan(downIdx))
-					}
 				}
-
 				downItem = r.spans[downIdx].down(downItem)
 			}
 		}

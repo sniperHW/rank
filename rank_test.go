@@ -46,7 +46,30 @@ func TestBenchmarkRank(t *testing.T) {
 		fmt.Println(time.Now().Sub(beg))
 		fmt.Println(len(r.spans))
 		assert.Equal(t, true, r.Check())
+	}
 
+	{
+		bar := progressbar.New(int(4000000))
+
+		beg := time.Now()
+		for i := 0; i < 4000000; i++ {
+			idx := i + 1
+			r.GetPercentRank(uint64(idx))
+			bar.Add(1)
+		}
+		fmt.Println(time.Now().Sub(beg))
+	}
+
+	{
+		bar := progressbar.New(int(4000000))
+
+		beg := time.Now()
+		for i := 0; i < 4000000; i++ {
+			idx := i + 1
+			r.GetExactRank(uint64(idx))
+			bar.Add(1)
+		}
+		fmt.Println(time.Now().Sub(beg))
 	}
 
 }
@@ -83,8 +106,8 @@ func TestRank(t *testing.T) {
 	{
 		var r *Rank = NewRank()
 
-		for i := 0; i < 100000; i++ {
-			idx := (rand.Int() % 100000) + 1
+		for i := 0; i < 10000; i++ {
+			idx := i + 1
 			score := rand.Int()
 			r.UpdateScore(uint64(idx), score)
 		}
@@ -103,6 +126,38 @@ func TestRank(t *testing.T) {
 		assert.Equal(t, 100, r.GetPercentRank(uint64(firstItem.id)))
 
 		assert.Equal(t, 0, r.GetPercentRank(uint64(lastItem.id)))
+
+		assert.Equal(t, 100, len(r.spans))
+
+		assert.Equal(t, true, r.Check())
+
+	}
+
+	{
+		var r *Rank = NewRank()
+
+		for i := 0; i < 100000; i++ {
+			idx := (rand.Int() % 100000) + 1
+			score := rand.Int()
+			r.UpdateScore(uint64(idx), score)
+		}
+
+		assert.Equal(t, true, r.Check())
+
+		lastC := r.spans[len(r.spans)-1]
+		lastItem := lastC.tail.pprev
+
+		//assert.Equal(t, len(r.id2Item), r.GetExactRank(uint64(lastItem.id)))
+
+		firstC := r.spans[0]
+		firstItem := firstC.head.pnext
+		assert.Equal(t, 1, r.GetExactRank(uint64(firstItem.id)))
+
+		assert.Equal(t, 100, r.GetPercentRank(uint64(firstItem.id)))
+
+		assert.Equal(t, 0, r.GetPercentRank(uint64(lastItem.id)))
+
+		assert.Equal(t, true, r.Check())
 
 	}
 
