@@ -92,6 +92,9 @@ func newSpan(idx int) *span {
 }
 
 func (c *span) show() {
+
+	fmt.Println("----------", c.idx, c.count, c.max, c.min, "----------------")
+
 	cur := c.head.pnext
 	for cur != &c.tail {
 		fmt.Println(cur.id, cur.score)
@@ -100,6 +103,9 @@ func (c *span) show() {
 }
 
 func (c *span) remove(item *rankItem) {
+	if c.count == 0 {
+		panic("count == 0 1")
+	}
 	c.count--
 	p := item.pprev
 	n := item.pnext
@@ -130,6 +136,9 @@ func (c *span) down(item *rankItem) *rankItem {
 	var r *rankItem
 
 	if c.count > maxItemCount {
+		if c.count == 0 {
+			panic("count == 0 2")
+		}
 		c.count--
 		//最后一个元素
 		r = c.tail.pprev
@@ -180,6 +189,9 @@ func (c *span) add(item *rankItem) (*rankItem, int) {
 	var r *rankItem
 
 	if c.count > maxItemCount {
+		if c.count == 0 {
+			panic("count == 0 3")
+		}
 		c.count--
 		//最后一个元素
 		r = c.tail.pprev
@@ -203,6 +215,7 @@ func (c *span) fixMinMax() {
 }
 
 func (c *span) check(max int) int {
+	cc := 0
 	cur := c.head.pnext
 	for cur != &c.tail {
 		if !(max >= cur.score) {
@@ -211,14 +224,22 @@ func (c *span) check(max int) int {
 			max = cur.score
 		}
 		cur = cur.pnext
+		cc++
 	}
+
+	if cc != c.count {
+		return -1
+	}
+
 	return max
 }
 
 type Rank struct {
-	id2Item  map[uint64]*rankItem
-	spans    []*span
-	itemPool *rankItemPool
+	id2Item   map[uint64]*rankItem
+	spans     []*span
+	itemPool  *rankItemPool
+	nextShink int
+	cc        int
 }
 
 func NewRank() *Rank {
@@ -305,7 +326,6 @@ func (r *Rank) Check() bool {
 
 func (r *Rank) Show() {
 	for _, v := range r.spans {
-		fmt.Println("----------", v.idx, "----------------")
 		v.show()
 	}
 }
@@ -352,6 +372,15 @@ func (r *Rank) findSpan(score int) *span {
 }
 
 func (r *Rank) UpdateScore(id uint64, score int) int {
+
+	r.cc++
+
+	defer func() {
+		if r.cc%100 == 0 {
+			r.shrink()
+		}
+	}()
+
 	var realRank int
 	item := r.getRankItem(id)
 	if nil == item {
@@ -382,7 +411,6 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 		var downItem *rankItem
 
 		if downItem, realRank = c.add(item); nil != downItem {
-
 			downCount := 0
 			downIdx := c.idx
 
@@ -397,9 +425,11 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 					//超过down次数，创建一个新的span接纳下降item终止下降过程
 					if downIdx >= len(r.spans) {
 						r.spans = append(r.spans, newSpan(downIdx))
+
 					} else if r.spans[downIdx].count >= maxItemCount {
 
 						if len(r.spans) < cap(r.spans) {
+
 							//还有空间,扩张containers,将downIdx开始的元素往后挪一个位置，空出downIdx所在位置
 							l := len(r.spans)
 							r.spans = r.spans[:len(r.spans)+1]
@@ -410,6 +440,7 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 							r.spans[downIdx] = newSpan(downIdx)
 
 						} else {
+
 							//下一个container满了，新建一个
 							spans := make([]*span, 0, len(r.spans)+1)
 							for i := 0; i <= downIdx-1; i++ {
@@ -428,7 +459,9 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 						}
 					}
 				}
+
 				downItem = r.spans[downIdx].down(downItem)
+
 			}
 		}
 
@@ -446,4 +479,74 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 	}
 
 	return realRank + r.getFrontSpanItemCount(item)
+}
+
+func (c *span) append(item *rankItem) {
+	p := c.tail.pprev
+	p.pnext = item
+	c.tail.pprev = item
+
+	item.pprev = p
+	item.pnext = &c.tail
+	c.count++
+	item.c = c
+}
+
+func (c *span) pop() *rankItem {
+	f := c.head.pnext
+	if f == &c.tail {
+		return nil
+	} else {
+		f.pnext.pprev = &c.head
+		c.head.pnext = f.pnext
+		c.count--
+		f.c = nil
+		return f
+	}
+}
+
+//将other中的元素吸纳进来
+func (c *span) merge(o *span) {
+	for c.count < maxItemCount {
+		if item := o.pop(); nil != item {
+			c.append(item)
+		} else {
+			break
+		}
+	}
+
+	c.fixMinMax()
+	o.fixMinMax()
+}
+
+func (r *Rank) shrink() {
+	//for {
+	if r.nextShink >= len(r.spans)-1 {
+		r.nextShink = 0
+		//return
+	} else {
+		s := r.spans[r.nextShink]
+		if maxItemCount-s.count > 50 { //s.count < maxItemCount {
+			//如果当前span有空间，将后续span的元素吸纳进当前span
+			n := r.spans[r.nextShink+1]
+
+			s.merge(n)
+
+			if n.count == 0 {
+				//n已经空了，删除
+				for i := n.idx + 1; i < len(r.spans); i++ {
+					c := r.spans[i]
+					r.spans[i-1] = c
+					c.idx = i - 1
+				}
+				r.spans[len(r.spans)-1] = nil
+				r.spans = r.spans[:len(r.spans)-1]
+			}
+			r.nextShink++
+		} else {
+			r.nextShink++
+		}
+		//return
+	}
+	//}
 }
