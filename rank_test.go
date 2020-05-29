@@ -18,13 +18,15 @@ func TestBenchmarkRank(t *testing.T) {
 	var r *Rank = NewRank()
 	fmt.Println("TestBenchmarkRank")
 
+	testCount := 5000000
+
 	{
-		bar := progressbar.New(int(4000000))
+		bar := progressbar.New(int(testCount))
 
 		beg := time.Now()
-		for i := 0; i < 4000000; i++ {
+		for i := 0; i < testCount; i++ {
 			idx := i + 1
-			score := rand.Int()
+			score := rand.Int() % 1000000
 			r.UpdateScore(uint64(idx), score)
 			bar.Add(1)
 		}
@@ -34,12 +36,16 @@ func TestBenchmarkRank(t *testing.T) {
 	}
 
 	{
-		bar := progressbar.New(int(4000000))
 
+		testCount := 50000000
+
+		bar := progressbar.New(int(testCount))
 		beg := time.Now()
-		for i := 0; i < 4000000; i++ {
-			idx := i + 1
-			score := rand.Int()
+		for i := 0; i < testCount; i++ {
+			idx := (rand.Int() % len(r.id2Item)) + 1
+			item := r.id2Item[uint64(idx)]
+			score := rand.Int() % 10000
+			score = item.score + score
 			r.UpdateScore(uint64(idx), score)
 			bar.Add(1)
 		}
@@ -48,11 +54,30 @@ func TestBenchmarkRank(t *testing.T) {
 		assert.Equal(t, true, r.Check())
 	}
 
-	{
-		bar := progressbar.New(int(4000000))
+	/*{
+		bar := progressbar.New(len(r.id2Item) * 2)
 
 		beg := time.Now()
-		for i := 0; i < 4000000; i++ {
+
+		for i := 0; i < 2; i++ {
+			for k, v := range r.id2Item {
+				score := rand.Int() % 10000
+				score = v.score + score
+				r.UpdateScore(k, score)
+				bar.Add(1)
+			}
+		}
+
+		fmt.Println(time.Now().Sub(beg))
+		fmt.Println(len(r.spans))
+		assert.Equal(t, true, r.Check())
+	}*/
+
+	{
+		bar := progressbar.New(int(testCount))
+
+		beg := time.Now()
+		for i := 0; i < testCount; i++ {
 			idx := i + 1
 			r.GetPercentRank(uint64(idx))
 			bar.Add(1)
@@ -61,10 +86,10 @@ func TestBenchmarkRank(t *testing.T) {
 	}
 
 	{
-		bar := progressbar.New(int(4000000))
+		bar := progressbar.New(int(testCount))
 
 		beg := time.Now()
-		for i := 0; i < 4000000; i++ {
+		for i := 0; i < testCount; i++ {
 			idx := i + 1
 			r.GetExactRank(uint64(idx))
 			bar.Add(1)
@@ -140,7 +165,7 @@ func TestRank(t *testing.T) {
 
 		for i := 0; i < 100000; i++ {
 			idx := (rand.Int() % 100000) + 1
-			score := rand.Int()
+			score := rand.Int() % 1000000
 			r.UpdateScore(uint64(idx), score)
 		}
 

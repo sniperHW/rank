@@ -5,6 +5,7 @@ import (
 )
 
 var maxItemCount int = 100
+var realRankIdx int = 100
 
 type rankItemBlock struct {
 	items    []rankItem
@@ -333,17 +334,20 @@ func (r *Rank) GetPercentRank(id uint64) int {
 	}
 }
 
-func (r *Rank) getExactRank(item *rankItem) int {
+func (r *Rank) getFrontSpanItemCount(item *rankItem) int {
 	c := 0
-	if item.c.idx < 100 {
-		//down规则保证了前100个span必定不存在空隙
+	if item.c.idx < realRankIdx {
 		for i := 0; i < item.c.idx; i++ {
 			c += r.spans[i].count
 		}
 	} else {
 		c = 100 * item.c.idx
 	}
+	return c
+}
 
+func (r *Rank) getExactRank(item *rankItem) int {
+	c := r.getFrontSpanItemCount(item)
 	count := 0
 	cc := item.c
 	pprev := item.pprev
@@ -400,32 +404,38 @@ func (r *Rank) getRankItem(id uint64) *rankItem {
 	return r.id2Item[id]
 }
 
-func (r *Rank) binarySearch(score int, left int, right int) *span {
+func (r *Rank) binarySearch(id uint64, score int, left int, right int) *span {
+
+	if left >= right {
+		return r.spans[left]
+	}
+
 	mIdx := (right-left)/2 + left
 	m := r.spans[mIdx]
+
 	if m.max > score {
 		nIdx := mIdx + 1
 		if nIdx >= len(r.spans) || r.spans[nIdx].max < score {
 			return m
 		}
-		return r.binarySearch(score, mIdx+1, right)
+		return r.binarySearch(id, score, mIdx+1, right)
 	} else {
 		pIdx := mIdx - 1
 		if pIdx < 0 || r.spans[pIdx].min > score {
 			return m
 		}
-		return r.binarySearch(score, left, mIdx-1)
+		return r.binarySearch(id, score, left, mIdx-1)
 	}
 
 }
 
-func (r *Rank) findSpan(score int) *span {
+func (r *Rank) findSpan(id uint64, score int) *span {
 	var c *span
 	if len(r.spans) == 0 {
 		c = newSpan(len(r.spans))
 		r.spans = append(r.spans, c)
 	} else {
-		c = r.binarySearch(score, 0, len(r.spans)-1)
+		c = r.binarySearch(id, score, 0, len(r.spans)-1)
 	}
 
 	return c
@@ -455,7 +465,7 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 		item.score = score
 	}
 
-	c := r.findSpan(score)
+	c := r.findSpan(id, score)
 
 	if c == item.c {
 		realRank = c.update(item, change)
@@ -477,7 +487,7 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 			for nil != downItem {
 				downIdx++
 				downCount++
-				if downIdx < 100 || downCount <= 15 {
+				if downIdx < realRankIdx || downCount <= 15 {
 					if downIdx >= len(r.spans) {
 						r.spans = append(r.spans, newSpan(downIdx))
 					}
@@ -533,15 +543,5 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 		}
 	}
 
-	if item.c.idx < 100 {
-		//down规则保证了前100个span必定不存在空隙
-		for i := 0; i < item.c.idx; i++ {
-			realRank += r.spans[i].count
-		}
-	} else {
-		realRank += 100 * item.c.idx
-	}
-
-	return realRank
-
+	return realRank + r.getFrontSpanItemCount(item)
 }
