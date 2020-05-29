@@ -36,8 +36,23 @@ func TestBenchmarkRank(t *testing.T) {
 	}
 
 	{
+		bar := progressbar.New(int(testCount))
 
-		testCount := 50000000
+		beg := time.Now()
+		for i := 0; i < testCount; i++ {
+			idx := i + 1
+			score := rand.Int() % 1000000
+			r.UpdateScore(uint64(idx), score)
+			bar.Add(1)
+		}
+		fmt.Println(time.Now().Sub(beg))
+		fmt.Println(len(r.spans))
+		assert.Equal(t, true, r.Check())
+	}
+
+	{
+
+		testCount := 5000000
 
 		bar := progressbar.New(int(testCount))
 		beg := time.Now()
@@ -53,25 +68,6 @@ func TestBenchmarkRank(t *testing.T) {
 		fmt.Println(len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
-
-	/*{
-		bar := progressbar.New(len(r.id2Item) * 2)
-
-		beg := time.Now()
-
-		for i := 0; i < 2; i++ {
-			for k, v := range r.id2Item {
-				score := rand.Int() % 10000
-				score = v.score + score
-				r.UpdateScore(k, score)
-				bar.Add(1)
-			}
-		}
-
-		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans))
-		assert.Equal(t, true, r.Check())
-	}*/
 
 	{
 		bar := progressbar.New(int(testCount))

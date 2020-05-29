@@ -107,98 +107,13 @@ func (c *span) remove(item *rankItem) {
 	p.pnext = n
 	n.pprev = p
 
-	//item.pprev = nil
-	//item.pnext = nil
-	//item.c = nil
-
 	c.fixMinMax()
 }
 
-func (c *span) update(item *rankItem, change int) int {
-
-	p := item.pprev
-	n := item.pnext
-
-	var cc *rankItem
-
-	if change > 0 {
-		//积分增加往前移动
-		if p == &c.head {
-			return 1
-		}
-
-		p.pnext = n
-		n.pprev = p
-
-		for p != &c.head {
-			if p.score >= item.score {
-				break
-			} else {
-				p = p.pprev
-			}
-		}
-
-		cc = p
-
-		//插入到cc后面
-
-		n = cc.pnext
-		n.pprev = item
-		cc.pnext = item
-		item.pnext = n
-		item.pprev = cc
-
-	} else {
-		//积分减少往后移
-		if n == &c.tail {
-			return c.count
-		}
-
-		p.pnext = n
-		n.pprev = p
-
-		for n != &c.tail {
-			if n.score <= item.score {
-				break
-			} else {
-				n = n.pnext
-			}
-		}
-
-		cc = n
-
-		//插入到cc前
-		p = cc.pprev
-		p.pnext = item
-		cc.pprev = item
-		item.pprev = p
-		item.pnext = cc
-
-	}
-
-	c.fixMinMax()
-
-	count := 0
-	pprev := item.pprev
-	pnext := item.pnext
-	for {
-		if pprev == &c.head {
-			count += 1
-			break
-		}
-
-		if pnext == &c.tail {
-			count = c.count - count
-			break
-		}
-
-		pprev = pprev.pprev
-		pnext = pnext.pnext
-		count++
-	}
-
-	return count
-
+func (c *span) update(item *rankItem) int {
+	c.remove(item)
+	_, realRank := c.add(item)
+	return realRank
 }
 
 func (c *span) down(item *rankItem) *rankItem {
@@ -244,15 +159,12 @@ func (c *span) add(item *rankItem) (*rankItem, int) {
 			cc = front
 			realRank = count + 1
 			break
-		} else if back.score >= item.score {
+		} else if back.score > item.score {
 			cc = back.pnext
 			realRank = c.count - count
 			break
-		} else if back.pprev.score >= item.score && back.score <= item.score {
-			cc = back
-			realRank = c.count - count - 1
-			break
 		}
+
 		front = front.pnext
 		back = back.pprev
 		count++
@@ -276,8 +188,6 @@ func (c *span) add(item *rankItem) (*rankItem, int) {
 		if item == r {
 			realRank = 1
 		}
-		//r.pprev = nil
-		//r.pnext = nil
 	}
 
 	c.fixMinMax()
@@ -314,14 +224,14 @@ type Rank struct {
 func NewRank() *Rank {
 	return &Rank{
 		id2Item:  map[uint64]*rankItem{},
-		spans:    make([]*span, 0, 65536),
+		spans:    make([]*span, 0, 65536/2),
 		itemPool: newRankItemPool(),
 	}
 }
 
 func (r *Rank) Reset() {
 	r.id2Item = map[uint64]*rankItem{}
-	r.spans = make([]*span, 0, 65536)
+	r.spans = make([]*span, 0, 65536/2)
 	r.itemPool.reset()
 }
 
@@ -404,7 +314,7 @@ func (r *Rank) getRankItem(id uint64) *rankItem {
 	return r.id2Item[id]
 }
 
-func (r *Rank) binarySearch(id uint64, score int, left int, right int) *span {
+func (r *Rank) binarySearch(score int, left int, right int) *span {
 
 	if left >= right {
 		return r.spans[left]
@@ -418,31 +328,30 @@ func (r *Rank) binarySearch(id uint64, score int, left int, right int) *span {
 		if nIdx >= len(r.spans) || r.spans[nIdx].max < score {
 			return m
 		}
-		return r.binarySearch(id, score, mIdx+1, right)
+		return r.binarySearch(score, mIdx+1, right)
 	} else {
 		pIdx := mIdx - 1
 		if pIdx < 0 || r.spans[pIdx].min > score {
 			return m
 		}
-		return r.binarySearch(id, score, left, mIdx-1)
+		return r.binarySearch(score, left, mIdx-1)
 	}
 
 }
 
-func (r *Rank) findSpan(id uint64, score int) *span {
+func (r *Rank) findSpan(score int) *span {
 	var c *span
 	if len(r.spans) == 0 {
 		c = newSpan(len(r.spans))
 		r.spans = append(r.spans, c)
 	} else {
-		c = r.binarySearch(id, score, 0, len(r.spans)-1)
+		c = r.binarySearch(score, 0, len(r.spans)-1)
 	}
 
 	return c
 }
 
 func (r *Rank) UpdateScore(id uint64, score int) int {
-	var change int
 	var realRank int
 	item := r.getRankItem(id)
 	if nil == item {
@@ -456,20 +365,13 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 			return r.getExactRank(item)
 		}
 
-		if item.score > score {
-			change = -1
-		} else {
-			change = 1
-		}
-
 		item.score = score
 	}
 
-	c := r.findSpan(id, score)
-
-	if c == item.c {
-		realRank = c.update(item, change)
+	if item.c != nil && item.c.max > score && item.c.min <= score {
+		realRank = item.c.update(item)
 	} else {
+		c := r.findSpan(score)
 
 		oldC := item.c
 
