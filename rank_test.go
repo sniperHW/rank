@@ -19,40 +19,42 @@ func TestBenchmarkRank(t *testing.T) {
 	fmt.Println("TestBenchmarkRank")
 
 	testCount := 5000000
+	idRange := 5000000
 
 	{
 		bar := progressbar.New(int(testCount))
 
 		beg := time.Now()
 		for i := 0; i < testCount; i++ {
-			idx := i + 1
+			idx := i%idRange + 1
 			score := rand.Int() % 1000000
 			r.UpdateScore(uint64(idx), score)
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans))
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
 
 	{
+		testCount := 10000000
 		bar := progressbar.New(int(testCount))
 
 		beg := time.Now()
 		for i := 0; i < testCount; i++ {
-			idx := i + 1
+			idx := i%idRange + 1
 			score := rand.Int() % 1000000
 			r.UpdateScore(uint64(idx), score)
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans))
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
 
 	{
 
-		testCount := 5000000
+		testCount := 10000000
 
 		bar := progressbar.New(int(testCount))
 		beg := time.Now()
@@ -65,16 +67,32 @@ func TestBenchmarkRank(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans))
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
 
 	{
+
+		testCount := 10000000
+
+		bar := progressbar.New(int(testCount))
+		beg := time.Now()
+		for i := 0; i < testCount; i++ {
+			r.shrink(0)
+			bar.Add(1)
+		}
+		fmt.Println(time.Now().Sub(beg))
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		assert.Equal(t, true, r.Check())
+	}
+
+	{
+
 		bar := progressbar.New(int(testCount))
 
 		beg := time.Now()
 		for i := 0; i < testCount; i++ {
-			idx := i + 1
+			idx := i%idRange + 1
 			r.GetPercentRank(uint64(idx))
 			bar.Add(1)
 		}
@@ -86,7 +104,7 @@ func TestBenchmarkRank(t *testing.T) {
 
 		beg := time.Now()
 		for i := 0; i < testCount; i++ {
-			idx := i + 1
+			idx := i%idRange + 1
 			r.GetExactRank(uint64(idx))
 			bar.Add(1)
 		}

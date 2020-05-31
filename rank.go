@@ -377,7 +377,7 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 
 	defer func() {
 		if r.cc%100 == 0 {
-			r.shrink()
+			r.shrink(10)
 		}
 	}()
 
@@ -519,15 +519,14 @@ func (c *span) merge(o *span) {
 	o.fixMinMax()
 }
 
-func (r *Rank) shrink() {
-	//for {
+func (r *Rank) shrink(emptyCount int) {
 	if r.nextShink >= len(r.spans)-1 {
 		r.nextShink = 0
-		//return
 	} else {
 		s := r.spans[r.nextShink]
-		if maxItemCount-s.count > 50 { //s.count < maxItemCount {
+		if maxItemCount-s.count > emptyCount {
 			//如果当前span有空间，将后续span的元素吸纳进当前span
+
 			n := r.spans[r.nextShink+1]
 
 			s.merge(n)
@@ -542,11 +541,7 @@ func (r *Rank) shrink() {
 				r.spans[len(r.spans)-1] = nil
 				r.spans = r.spans[:len(r.spans)-1]
 			}
-			r.nextShink++
-		} else {
-			r.nextShink++
 		}
-		//return
+		r.nextShink++
 	}
-	//}
 }
