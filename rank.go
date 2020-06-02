@@ -137,6 +137,14 @@ func (r *Rank) Show() {
 	}
 }
 
+func (r *Rank) getToplinkCount() int {
+	c := 0
+	for _, v := range r.spans {
+		c += v.getToplinkCount()
+	}
+	return c
+}
+
 func (r *Rank) getRankItem(id uint64) *node {
 	return r.id2Item[id]
 }

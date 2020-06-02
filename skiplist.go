@@ -77,6 +77,16 @@ func (sl *skiplist) fixMinMax() {
 	}
 }
 
+func (sl *skiplist) getToplinkCount() int {
+	n := sl.head.links[maxLevel-1].pnext
+	c := 0
+	for n != &sl.tail {
+		c++
+		n = n.links[maxLevel-1].pnext
+	}
+	return c
+}
+
 func (sl *skiplist) show() {
 	fmt.Println("--------------------idx", sl.idx, "--------------------------------")
 	for i := 0; i < maxLevel; i++ {
