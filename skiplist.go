@@ -305,6 +305,22 @@ func (sl *skiplist) find(head *node, n *node, level int) (pprev *node, pnext *no
 		return
 	} else {
 		next := head.links[level].pnext
+		if nil == next {
+			nn := head.links[0].pnext
+			for nn != &sl.tail {
+				if nn.links[level].pnext != nil {
+					next = nn
+					break
+				} else {
+					nn = nn.links[0].pnext
+				}
+			}
+
+			if nil == next {
+				return nil, nil
+			}
+		}
+
 		for {
 			if n.score >= next.score {
 				pprev, pnext = next.links[level].pprev, next

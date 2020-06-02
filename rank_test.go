@@ -10,18 +10,19 @@ import (
 	"github.com/schollz/progressbar"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
-	"net/http"
-	_ "net/http/pprof"
+	//"net/http"
+	//_ "net/http/pprof"
 	"testing"
 	"time"
 )
 
+/*
 func init() {
 	go func() {
 		http.ListenAndServe("0.0.0.0:6060", nil)
 	}()
 
-}
+}*/
 
 func TestSkipList(t *testing.T) {
 	/*{
@@ -401,7 +402,7 @@ func TestRank(t *testing.T) {
 		for i := 0; i < 100000; i++ {
 			idx := (rand.Int() % 100000) + 1
 			score := rand.Int() % 1000000
-			//fmt.Println("i", i, idx, score)
+			fmt.Println("i", i, idx, score)
 			r.UpdateScore(uint64(idx), score)
 		}
 

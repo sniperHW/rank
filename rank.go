@@ -182,13 +182,12 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 
 	r.cc++
 
-	//defer func() {
-	//	if r.cc%100 == 0 {
-	//		r.shrink(10)
-	//	}
-	//}()
+	defer func() {
+		if r.cc%100 == 0 {
+			r.shrink(10)
+		}
+	}()
 
-	//var realRank int
 	item := r.getRankItem(id)
 	if nil == item {
 		item = r.itemPool.get()
