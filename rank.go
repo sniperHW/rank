@@ -2,10 +2,14 @@ package rank
 
 import (
 	"fmt"
+	"strings"
 )
 
-var maxItemCount int = 100
-var realRankIdx int = 100
+const maxItemCount int = 100
+const realRankIdx int = 100
+
+const vacancyRate int = 10 //空缺率10%
+const vacancy int = maxItemCount * vacancyRate / 100
 
 type rankItemBlock struct {
 	items    []rankItem
@@ -92,14 +96,14 @@ func newSpan(idx int) *span {
 }
 
 func (c *span) show() {
-
-	fmt.Println("----------", c.idx, c.count, c.max, c.min, "----------------")
-
+	fmt.Printf("------------------------idx:%d,count:%d,max:%d,min:%d-------------------------\n", c.idx, c.count, c.max, c.min)
+	s := []string{}
 	cur := c.head.pnext
 	for cur != &c.tail {
-		fmt.Println(cur.id, cur.score)
+		s = append(s, fmt.Sprintf("(id:%d,score:%d)", cur.id, cur.score))
 		cur = cur.pnext
 	}
+	fmt.Println(strings.Join(s, "->"))
 }
 
 func (c *span) remove(item *rankItem) {
@@ -158,25 +162,23 @@ func (c *span) add(item *rankItem) (*rankItem, int) {
 	//寻找合适的插入位置
 	var cc *rankItem
 
-	realRank := 0
-	count := 0
-
+	offset := 0
 	front := c.head.pnext
 	back := c.tail.pprev
 	for {
 		if front.score <= item.score {
 			cc = front
-			realRank = count + 1
+			offset += 1
 			break
 		} else if back.score > item.score {
 			cc = back.pnext
-			realRank = c.count - count
+			offset = c.count - offset
 			break
 		}
 
 		front = front.pnext
 		back = back.pprev
-		count++
+		offset++
 	}
 
 	//插入到cc前
@@ -198,13 +200,13 @@ func (c *span) add(item *rankItem) (*rankItem, int) {
 		r.pprev.pnext = &c.tail
 		c.tail.pprev = r.pprev
 		if item == r {
-			realRank = 1
+			offset = 1
 		}
 	}
 
 	c.fixMinMax()
 
-	return r, realRank
+	return r, offset
 }
 
 func (c *span) fixMinMax() {
@@ -234,12 +236,50 @@ func (c *span) check(max int) int {
 	return max
 }
 
+func (c *span) append(item *rankItem) {
+	p := c.tail.pprev
+	p.pnext = item
+	c.tail.pprev = item
+
+	item.pprev = p
+	item.pnext = &c.tail
+	c.count++
+	item.c = c
+}
+
+func (c *span) pop() *rankItem {
+	f := c.head.pnext
+	if f == &c.tail {
+		return nil
+	} else {
+		f.pnext.pprev = &c.head
+		c.head.pnext = f.pnext
+		c.count--
+		f.c = nil
+		return f
+	}
+}
+
+//将other中的元素吸纳进来
+func (c *span) merge(o *span) {
+	for c.count < maxItemCount {
+		if item := o.pop(); nil != item {
+			c.append(item)
+		} else {
+			break
+		}
+	}
+
+	c.fixMinMax()
+	o.fixMinMax()
+}
+
 type Rank struct {
 	id2Item   map[uint64]*rankItem
 	spans     []*span
 	itemPool  *rankItemPool
 	nextShink int
-	cc        int
+	//cc        int
 }
 
 func NewRank() *Rank {
@@ -373,13 +413,13 @@ func (r *Rank) findSpan(score int) *span {
 
 func (r *Rank) UpdateScore(id uint64, score int) int {
 
-	r.cc++
+	//r.cc++
 
-	defer func() {
+	/*defer func() {
 		if r.cc%100 == 0 {
-			r.shrink(10)
+			r.shrink(vacancy, nil)
 		}
-	}()
+	}()*/
 
 	var realRank int
 	item := r.getRankItem(id)
@@ -465,83 +505,49 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 			}
 		}
 
-		if nil != oldC && oldC.count == 0 {
-			//oldC已经被清空，需要删除
-			for i := oldC.idx + 1; i < len(r.spans); i++ {
-				c := r.spans[i]
-				r.spans[i-1] = c
-				c.idx = i - 1
-			}
+		if nil != oldC {
+			if oldC.count == 0 {
+				//oldC已经被清空，需要删除
+				for i := oldC.idx + 1; i < len(r.spans); i++ {
+					c := r.spans[i]
+					r.spans[i-1] = c
+					c.idx = i - 1
+				}
 
-			r.spans[len(r.spans)-1] = nil
-			r.spans = r.spans[:len(r.spans)-1]
+				r.spans[len(r.spans)-1] = nil
+				r.spans = r.spans[:len(r.spans)-1]
+			} else if oldC.idx != item.c.idx && maxItemCount-oldC.count > vacancy {
+				r.shrink(vacancy, oldC)
+			}
 		}
 	}
 
 	return realRank + r.getFrontSpanItemCount(item)
 }
 
-func (c *span) append(item *rankItem) {
-	p := c.tail.pprev
-	p.pnext = item
-	c.tail.pprev = item
-
-	item.pprev = p
-	item.pnext = &c.tail
-	c.count++
-	item.c = c
-}
-
-func (c *span) pop() *rankItem {
-	f := c.head.pnext
-	if f == &c.tail {
-		return nil
-	} else {
-		f.pnext.pprev = &c.head
-		c.head.pnext = f.pnext
-		c.count--
-		f.c = nil
-		return f
-	}
-}
-
-//将other中的元素吸纳进来
-func (c *span) merge(o *span) {
-	for c.count < maxItemCount {
-		if item := o.pop(); nil != item {
-			c.append(item)
+func (r *Rank) shrink(vacancy int, s *span) {
+	if nil == s {
+		if r.nextShink >= len(r.spans)-1 {
+			r.nextShink = 0
+			return
 		} else {
-			break
+			s = r.spans[r.nextShink]
+			r.nextShink++
 		}
 	}
 
-	c.fixMinMax()
-	o.fixMinMax()
-}
-
-func (r *Rank) shrink(emptyCount int) {
-	if r.nextShink >= len(r.spans)-1 {
-		r.nextShink = 0
-	} else {
-		s := r.spans[r.nextShink]
-		if maxItemCount-s.count > emptyCount {
-			//如果当前span有空间，将后续span的元素吸纳进当前span
-
-			n := r.spans[r.nextShink+1]
-
-			s.merge(n)
-
-			if n.count == 0 {
-				//n已经空了，删除
-				for i := n.idx + 1; i < len(r.spans); i++ {
-					c := r.spans[i]
-					r.spans[i-1] = c
-					c.idx = i - 1
-				}
-				r.spans[len(r.spans)-1] = nil
-				r.spans = r.spans[:len(r.spans)-1]
+	if maxItemCount-s.count > vacancy && s.idx+1 < len(r.spans) {
+		n := r.spans[s.idx+1]
+		s.merge(n)
+		if n.count == 0 {
+			//n已经空了，删除
+			for i := n.idx + 1; i < len(r.spans); i++ {
+				c := r.spans[i]
+				r.spans[i-1] = c
+				c.idx = i - 1
 			}
+			r.spans[len(r.spans)-1] = nil
+			r.spans = r.spans[:len(r.spans)-1]
 		}
-		r.nextShink++
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/schollz/progressbar"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
+	//"strings"
 	"testing"
 	"time"
 )
@@ -32,8 +33,25 @@ func TestBenchmarkRank(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		fmt.Println(len(r.id2Item), len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
+
+		low := []string{}
+
+		total := 0
+
+		for _, v := range r.spans {
+			total += v.count
+			if v.count < len(r.id2Item)/len(r.spans) {
+				low = append(low, fmt.Sprintf("(%d,%d)", v.idx, v.count))
+			}
+		}
+
+		assert.Equal(t, len(r.id2Item), total)
+
+		fmt.Println("< ", len(low))
+		//fmt.Println(strings.Join(low, ","))
+
 	}
 
 	{
@@ -48,8 +66,26 @@ func TestBenchmarkRank(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		fmt.Println(len(r.id2Item), len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
+
+		low := []string{}
+
+		total := 0
+
+		for _, v := range r.spans {
+			total += v.count
+			if v.count < len(r.id2Item)/len(r.spans) {
+				low = append(low, fmt.Sprintf("(%d,%d)", v.idx, v.count))
+			}
+		}
+
+		assert.Equal(t, len(r.id2Item), total)
+
+		fmt.Println("< ", len(low))
+
+		//fmt.Println(strings.Join(low, ","))
+
 	}
 
 	{
@@ -67,8 +103,25 @@ func TestBenchmarkRank(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		fmt.Println(len(r.id2Item), len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
+
+		low := []string{}
+
+		total := 0
+
+		for _, v := range r.spans {
+			total += v.count
+			if v.count < len(r.id2Item)/len(r.spans) {
+				low = append(low, fmt.Sprintf("(%d,%d)", v.idx, v.count))
+			}
+		}
+
+		assert.Equal(t, len(r.id2Item), total)
+		fmt.Println("< ", len(low))
+
+		//fmt.Println(strings.Join(low, ","))
+
 	}
 
 	{
@@ -78,7 +131,7 @@ func TestBenchmarkRank(t *testing.T) {
 		bar := progressbar.New(int(testCount))
 		beg := time.Now()
 		for i := 0; i < testCount; i++ {
-			r.shrink(0)
+			r.shrink(0, nil)
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
