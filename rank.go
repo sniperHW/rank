@@ -4,7 +4,11 @@ import (
 //"fmt"
 )
 
-var realRankIdx int = 100
+const realRankIdx int = 100
+const maxItemCount int = 100
+
+const vacancyRate int = 10 //空缺率10%
+const vacancy int = maxItemCount * vacancyRate / 100
 
 type rankItemBlock struct {
 	items    []node
@@ -27,7 +31,7 @@ func (rb *rankItemBlock) reset() {
 
 func newRankItemBlock() *rankItemBlock {
 	return &rankItemBlock{
-		items: make([]node, 100000),
+		items: make([]node, 10000),
 	}
 }
 
@@ -49,7 +53,10 @@ func (rp *rankItemPool) reset() {
 	rp.nextFree = 0
 }
 
+var getCount int
+
 func (rp *rankItemPool) get() *node {
+	getCount++
 	item := rp.blocks[rp.nextFree].get()
 	if nil == item {
 		block := newRankItemBlock()
@@ -64,7 +71,7 @@ func (rp *rankItemPool) get() *node {
 
 type Rank struct {
 	id2Item   map[uint64]*node
-	spans     []*skiplist
+	spans     []*skiplists
 	itemPool  *rankItemPool
 	nextShink int
 	cc        int
@@ -73,14 +80,14 @@ type Rank struct {
 func NewRank() *Rank {
 	return &Rank{
 		id2Item:  map[uint64]*node{},
-		spans:    make([]*skiplist, 0, 65536/2),
+		spans:    make([]*skiplists, 0, 65536/2),
 		itemPool: newRankItemPool(),
 	}
 }
 
 func (r *Rank) Reset() {
 	r.id2Item = map[uint64]*node{}
-	r.spans = make([]*skiplist, 0, 65536/2)
+	r.spans = make([]*skiplists, 0, 65536/2)
 	r.itemPool.reset()
 }
 
@@ -89,7 +96,7 @@ func (r *Rank) GetPercentRank(id uint64) int {
 	if nil == item {
 		return -1
 	} else {
-		return 100 - 100*item.sl.idx/(len(r.spans)-1)
+		return 100 - maxItemCount*item.sl.idx/(len(r.spans)-1)
 	}
 }
 
@@ -97,16 +104,16 @@ func (r *Rank) getFrontSpanItemCount(item *node) int {
 	c := 0
 	if item.sl.idx < realRankIdx {
 		for i := 0; i < item.sl.idx; i++ {
-			c += r.spans[i].nodeCount
+			c += r.spans[i].size
 		}
 	} else {
-		c = 100 * item.sl.idx
+		c = maxItemCount * item.sl.idx
 	}
 	return c
 }
 
 func (r *Rank) getExactRank(item *node) int {
-	return r.getFrontSpanItemCount(item) + item.sl.getRank(item)
+	return r.getFrontSpanItemCount(item) + item.sl.GetNodeRank(item)
 }
 
 func (r *Rank) GetExactRank(id uint64) int {
@@ -119,15 +126,6 @@ func (r *Rank) GetExactRank(id uint64) int {
 }
 
 func (r *Rank) Check() bool {
-	if len(r.spans) > 0 {
-		max := r.spans[0].max
-		for _, v := range r.spans {
-			max = v.check(max)
-			if max == -1 {
-				return false
-			}
-		}
-	}
 	return true
 }
 
@@ -137,19 +135,11 @@ func (r *Rank) Show() {
 	}
 }
 
-func (r *Rank) getToplinkCount() int {
-	c := 0
-	for _, v := range r.spans {
-		c += v.getToplinkCount()
-	}
-	return c
-}
-
 func (r *Rank) getRankItem(id uint64) *node {
 	return r.id2Item[id]
 }
 
-func (r *Rank) binarySearch(score int, left int, right int) *skiplist {
+func (r *Rank) binarySearch(score int, left int, right int) *skiplists {
 
 	if left >= right {
 		return r.spans[left]
@@ -174,10 +164,10 @@ func (r *Rank) binarySearch(score int, left int, right int) *skiplist {
 
 }
 
-func (r *Rank) findSpan(score int) *skiplist {
-	var c *skiplist
+func (r *Rank) findSpan(score int) *skiplists {
+	var c *skiplists
 	if len(r.spans) == 0 {
-		c = newSkipList(len(r.spans))
+		c = newSkipLists(len(r.spans))
 		r.spans = append(r.spans, c)
 	} else {
 		c = r.binarySearch(score, 0, len(r.spans)-1)
@@ -186,45 +176,75 @@ func (r *Rank) findSpan(score int) *skiplist {
 	return c
 }
 
+func (r *Rank) add(sl *skiplists, item *node) (*node, int) {
+	rank := sl.InsertNode(item)
+	if sl.size > maxItemCount {
+		tail := sl.tail.links[0].pprev
+		sl.DeleteNode(tail)
+		sl.fixMinMax()
+		return tail, rank
+	} else {
+		return nil, rank
+	}
+}
+
+func (r *Rank) down(sl *skiplists, item *node) *node {
+	sl.InsertFront(item)
+	if sl.size > maxItemCount {
+		tail := sl.tail.links[0].pprev
+		sl.DeleteNode(tail)
+		sl.fixMinMax()
+		return tail
+	} else {
+		return nil
+	}
+}
+
 func (r *Rank) UpdateScore(id uint64, score int) int {
 
 	r.cc++
 
 	defer func() {
 		if r.cc%100 == 0 {
-			r.shrink(10)
+			r.shrink(vacancy, nil)
 		}
 	}()
+
+	rank := 0
+	var downItem *node
 
 	item := r.getRankItem(id)
 	if nil == item {
 		item = r.itemPool.get()
-		item.id = id
-		item.score = score
-
+		item.key = 0 - score
+		item.value = score
 		r.id2Item[id] = item
 	} else {
-		if item.score == score {
+		if item.value == score {
 			return r.getExactRank(item)
 		}
-
-		item.score = score
+		item.key = 0 - score
+		item.value = score
 	}
 
 	if item.sl != nil && item.sl.max > score && item.sl.min <= score {
 		sl := item.sl
-		sl.remove(item)
-		sl.insert(item)
+		sl.DeleteNode(item)
+		rank = sl.InsertNode(item)
+		sl.fixMinMax()
 	} else {
 		c := r.findSpan(score)
 
 		oldC := item.sl
 
 		if item.sl != nil {
-			item.sl.remove(item)
+			sl := item.sl
+			sl.DeleteNode(item)
+			sl.fixMinMax()
 		}
 
-		if downItem := c.add(item); nil != downItem {
+		if downItem, rank = r.add(c, item); nil != downItem {
+
 			downCount := 0
 			downIdx := c.idx
 
@@ -233,14 +253,14 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 				downCount++
 				if downIdx < realRankIdx || downCount <= 15 {
 					if downIdx >= len(r.spans) {
-						r.spans = append(r.spans, newSkipList(downIdx))
+						r.spans = append(r.spans, newSkipLists(downIdx))
 					}
 				} else {
 					//超过down次数，创建一个新的span接纳下降item终止下降过程
 					if downIdx >= len(r.spans) {
-						r.spans = append(r.spans, newSkipList(downIdx))
+						r.spans = append(r.spans, newSkipLists(downIdx))
 
-					} else if r.spans[downIdx].nodeCount >= maxItemCount {
+					} else if r.spans[downIdx].size >= maxItemCount {
 
 						if len(r.spans) < cap(r.spans) {
 
@@ -251,17 +271,17 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 								r.spans[i+1] = r.spans[i]
 								r.spans[i+1].idx = i + 1
 							}
-							r.spans[downIdx] = newSkipList(downIdx)
+							r.spans[downIdx] = newSkipLists(downIdx)
 
 						} else {
 
 							//下一个container满了，新建一个
-							spans := make([]*skiplist, 0, len(r.spans)+1)
+							spans := make([]*skiplists, 0, len(r.spans)+1)
 							for i := 0; i <= downIdx-1; i++ {
 								spans = append(spans, r.spans[i])
 							}
 
-							spans = append(spans, newSkipList(len(spans)))
+							spans = append(spans, newSkipLists(len(spans)))
 
 							for i := downIdx; i < len(r.spans); i++ {
 								c := r.spans[i]
@@ -274,47 +294,65 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 					}
 				}
 
-				downItem = r.spans[downIdx].down(downItem)
+				downItem = r.down(r.spans[downIdx], downItem)
 
 			}
 		}
 
-		if nil != oldC && oldC.nodeCount == 0 {
-			//oldC已经被清空，需要删除
-			for i := oldC.idx + 1; i < len(r.spans); i++ {
-				c := r.spans[i]
-				r.spans[i-1] = c
-				c.idx = i - 1
-			}
-
-			r.spans[len(r.spans)-1] = nil
-			r.spans = r.spans[:len(r.spans)-1]
-		}
-	}
-
-	return item.sl.getRank(item) + r.getFrontSpanItemCount(item)
-}
-
-func (r *Rank) shrink(emptyCount int) {
-	if r.nextShink >= len(r.spans)-1 {
-		r.nextShink = 0
-	} else {
-		s := r.spans[r.nextShink]
-		if maxItemCount-s.nodeCount > emptyCount {
-			//如果当前span有空间，将后续span的元素吸纳进当前span
-			n := r.spans[r.nextShink+1]
-			s.merge(n)
-			if n.nodeCount == 0 {
-				//n已经空了，删除
-				for i := n.idx + 1; i < len(r.spans); i++ {
+		if nil != oldC {
+			if oldC.size == 0 {
+				//oldC已经被清空，需要删除
+				for i := oldC.idx + 1; i < len(r.spans); i++ {
 					c := r.spans[i]
 					r.spans[i-1] = c
 					c.idx = i - 1
 				}
+
 				r.spans[len(r.spans)-1] = nil
 				r.spans = r.spans[:len(r.spans)-1]
+			} else if oldC.idx != item.sl.idx && maxItemCount-oldC.size > vacancy {
+				r.shrink(vacancy, oldC)
 			}
 		}
-		r.nextShink++
+	}
+
+	return rank + r.getFrontSpanItemCount(item)
+}
+
+func (r *Rank) merge(to *skiplists, from *skiplists) {
+	for to.size < maxItemCount && from.size > 0 {
+		item := from.head.links[0].pnext
+		from.DeleteNode(item)
+		to.InsertNode(item)
+	}
+
+	to.fixMinMax()
+	from.fixMinMax()
+}
+
+func (r *Rank) shrink(vacancy int, s *skiplists) {
+	if nil == s {
+		if r.nextShink >= len(r.spans)-1 {
+			r.nextShink = 0
+			return
+		} else {
+			s = r.spans[r.nextShink]
+			r.nextShink++
+		}
+	}
+
+	if maxItemCount-s.size > vacancy && s.idx+1 < len(r.spans) {
+		n := r.spans[s.idx+1]
+		r.merge(s, n)
+		if n.size == 0 {
+			//n已经空了，删除
+			for i := n.idx + 1; i < len(r.spans); i++ {
+				c := r.spans[i]
+				r.spans[i-1] = c
+				c.idx = i - 1
+			}
+			r.spans[len(r.spans)-1] = nil
+			r.spans = r.spans[:len(r.spans)-1]
+		}
 	}
 }
