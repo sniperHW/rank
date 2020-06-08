@@ -15,12 +15,36 @@ import (
 	"time"
 )
 
+func TestBenchmarkRank2(t *testing.T) {
+	var r *Rank = NewRank()
+	testCount := 50000000
+	idRange := 10000000
+	{
+		bar := progressbar.New(int(testCount))
+
+		beg := time.Now()
+		for i := 0; i < testCount; i++ {
+			idx := i%idRange + 1
+			item := r.getRankItem(uint64(idx))
+			var score int
+			if nil == item {
+				score = rand.Int() % 1000000
+			} else {
+				score = item.score + rand.Int()%10000
+			}
+			r.UpdateScore(uint64(idx), score)
+			bar.Add(1)
+		}
+		fmt.Println(time.Now().Sub(beg), len(r.id2Item))
+	}
+}
+
 func TestBenchmarkRank(t *testing.T) {
 	var r *Rank = NewRank()
 	fmt.Println("TestBenchmarkRank")
 
-	testCount := 5000000
-	idRange := 5000000
+	testCount := 10000000
+	idRange := 10000000
 
 	{
 		bar := progressbar.New(int(testCount))

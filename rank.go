@@ -279,7 +279,7 @@ type Rank struct {
 	spans     []*span
 	itemPool  *rankItemPool
 	nextShink int
-	//cc        int
+	cc        int
 }
 
 func NewRank() *Rank {
@@ -413,18 +413,18 @@ func (r *Rank) findSpan(score int) *span {
 
 func (r *Rank) UpdateScore(id uint64, score int) int {
 
-	//r.cc++
+	r.cc++
 
-	/*defer func() {
+	defer func() {
 		if r.cc%100 == 0 {
 			r.shrink(vacancy, nil)
 		}
-	}()*/
+	}()
 
 	var realRank int
 	item := r.getRankItem(id)
 	if nil == item {
-		item = r.itemPool.get()
+		item = &rankItem{} //r.itemPool.get()
 		item.id = id
 		item.score = score
 
