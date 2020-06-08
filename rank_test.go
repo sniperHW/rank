@@ -10,26 +10,50 @@ import (
 	"github.com/schollz/progressbar"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
-	//"net/http"
-	//_ "net/http/pprof"
+	"net/http"
+	_ "net/http/pprof"
 	"testing"
 	"time"
 )
 
-/*
 func init() {
 	go func() {
 		http.ListenAndServe("0.0.0.0:6060", nil)
 	}()
 
-}*/
+}
 
-func TestBenchmarkRank(t *testing.T) {
+func TestBenchmarkRank2(t *testing.T) {
+	var r *Rank = NewRank()
+	testCount := 50000000
+	idRange := 10000000
+	{
+		bar := progressbar.New(int(testCount))
+
+		beg := time.Now()
+		for i := 0; i < testCount; i++ {
+			idx := i%idRange + 1
+			item := r.getRankItem(uint64(idx))
+			var score int
+			if nil == item {
+				score = rand.Int() % 1000000
+			} else {
+				score = item.value + rand.Int()%10000
+			}
+			r.UpdateScore(uint64(idx), score)
+			bar.Add(1)
+		}
+		fmt.Println(time.Now().Sub(beg), len(r.id2Item))
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+	}
+}
+
+func TestBenchmarkRank1(t *testing.T) {
 	var r *Rank = NewRank()
 	fmt.Println("TestBenchmarkRank")
 
-	testCount := 5000000
-	idRange := 5000000
+	testCount := 10000000
+	idRange := 10000000
 
 	{
 		bar := progressbar.New(int(testCount))
@@ -42,12 +66,12 @@ func TestBenchmarkRank(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans), getCount)
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
 
 	{
-		testCount := 5000000
+		testCount := 10000000
 		bar := progressbar.New(int(testCount))
 
 		beg := time.Now()
@@ -59,31 +83,30 @@ func TestBenchmarkRank(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans), getCount)
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
-	/*
-		{
 
-			testCount := 10000000
+	{
 
-			bar := progressbar.New(int(testCount))
-			beg := time.Now()
-			for i := 0; i < testCount; i++ {
-				idx := (rand.Int() % len(r.id2Item)) + 1
-				item := r.id2Item[uint64(idx)]
-				score := rand.Int() % 10000
-				score = item.score + score
-				r.UpdateScore(uint64(idx), score)
-				bar.Add(1)
-			}
-			fmt.Println(time.Now().Sub(beg))
-			fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
-			assert.Equal(t, true, r.Check())
+		testCount := 10000000
+
+		bar := progressbar.New(int(testCount))
+		beg := time.Now()
+		for i := 0; i < testCount; i++ {
+			idx := (rand.Int() % len(r.id2Item)) + 1
+			item := r.id2Item[uint64(idx)]
+			score := rand.Int() % 10000
+			score = item.value + score
+			r.UpdateScore(uint64(idx), score)
+			bar.Add(1)
 		}
-	*/
+		fmt.Println(time.Now().Sub(beg))
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		assert.Equal(t, true, r.Check())
+	}
 
-	/*{
+	{
 
 		testCount := 10000000
 
@@ -96,34 +119,33 @@ func TestBenchmarkRank(t *testing.T) {
 		fmt.Println(time.Now().Sub(beg))
 		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
-	}*/
+	}
 
-	/*
-		{
+	{
 
-			bar := progressbar.New(int(testCount))
+		bar := progressbar.New(int(testCount))
 
-			beg := time.Now()
-			for i := 0; i < testCount; i++ {
-				idx := i%idRange + 1
-				r.GetPercentRank(uint64(idx))
-				bar.Add(1)
-			}
-			fmt.Println(time.Now().Sub(beg))
+		beg := time.Now()
+		for i := 0; i < testCount; i++ {
+			idx := i%idRange + 1
+			r.GetPercentRank(uint64(idx))
+			bar.Add(1)
 		}
+		fmt.Println(time.Now().Sub(beg))
+	}
 
-		{
-			bar := progressbar.New(int(testCount))
+	{
+		bar := progressbar.New(int(testCount))
 
-			beg := time.Now()
-			for i := 0; i < testCount; i++ {
-				idx := i%idRange + 1
-				r.GetExactRank(uint64(idx))
-				bar.Add(1)
-			}
-			fmt.Println(time.Now().Sub(beg))
+		beg := time.Now()
+		for i := 0; i < testCount; i++ {
+			idx := i%idRange + 1
+			r.GetExactRank(uint64(idx))
+			bar.Add(1)
 		}
-	*/
+		fmt.Println(time.Now().Sub(beg))
+	}
+
 }
 
 func TestRank(t *testing.T) {

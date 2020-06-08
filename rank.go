@@ -4,9 +4,8 @@ import (
 //"fmt"
 )
 
-const realRankIdx int = 100
-const maxItemCount int = 100
-
+const realRankCount int = 10000
+const maxItemCount int = 1000
 const vacancyRate int = 10 //空缺率10%
 const vacancy int = maxItemCount * vacancyRate / 100
 
@@ -26,6 +25,14 @@ func (rb *rankItemBlock) get() *node {
 }
 
 func (rb *rankItemBlock) reset() {
+	for i, _ := range rb.items {
+		item := &rb.items[i]
+		item.sl = nil
+		for j := 0; j < maxLevel; j++ {
+			item.links[j].skip = 0
+			item.links[j].pnext, item.links[j].pprev = nil, nil
+		}
+	}
 	rb.nextFree = 0
 }
 
@@ -53,10 +60,7 @@ func (rp *rankItemPool) reset() {
 	rp.nextFree = 0
 }
 
-var getCount int
-
 func (rp *rankItemPool) get() *node {
-	getCount++
 	item := rp.blocks[rp.nextFree].get()
 	if nil == item {
 		block := newRankItemBlock()
@@ -80,14 +84,14 @@ type Rank struct {
 func NewRank() *Rank {
 	return &Rank{
 		id2Item:  map[uint64]*node{},
-		spans:    make([]*skiplists, 0, 65536/2),
+		spans:    make([]*skiplists, 0, 8192),
 		itemPool: newRankItemPool(),
 	}
 }
 
 func (r *Rank) Reset() {
 	r.id2Item = map[uint64]*node{}
-	r.spans = make([]*skiplists, 0, 65536/2)
+	r.spans = make([]*skiplists, 0, 8192)
 	r.itemPool.reset()
 }
 
@@ -102,13 +106,23 @@ func (r *Rank) GetPercentRank(id uint64) int {
 
 func (r *Rank) getFrontSpanItemCount(item *node) int {
 	c := 0
-	if item.sl.idx < realRankIdx {
-		for i := 0; i < item.sl.idx; i++ {
-			c += r.spans[i].size
+	i := 0
+	for ; i < len(r.spans); i++ {
+		v := r.spans[i]
+		if item.sl == v {
+			break
+		} else {
+			c += v.size
+			if c >= realRankCount {
+				break
+			}
 		}
-	} else {
-		c = maxItemCount * item.sl.idx
 	}
+
+	if i < item.sl.idx {
+		c += maxItemCount * (item.sl.idx - i)
+	}
+
 	return c
 }
 
@@ -216,16 +230,15 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 	item := r.getRankItem(id)
 	if nil == item {
 		item = r.itemPool.get()
-		item.key = 0 - score
-		item.value = score
 		r.id2Item[id] = item
 	} else {
 		if item.value == score {
 			return r.getExactRank(item)
 		}
-		item.key = 0 - score
-		item.value = score
 	}
+
+	item.key = 0 - score
+	item.value = score
 
 	if item.sl != nil && item.sl.max > score && item.sl.min <= score {
 		sl := item.sl
@@ -244,58 +257,45 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 		}
 
 		if downItem, rank = r.add(c, item); nil != downItem {
-
-			downCount := 0
 			downIdx := c.idx
-
 			for nil != downItem {
 				downIdx++
-				downCount++
-				if downIdx < realRankIdx || downCount <= 15 {
-					if downIdx >= len(r.spans) {
-						r.spans = append(r.spans, newSkipLists(downIdx))
-					}
-				} else {
-					//超过down次数，创建一个新的span接纳下降item终止下降过程
-					if downIdx >= len(r.spans) {
-						r.spans = append(r.spans, newSkipLists(downIdx))
+				if downIdx >= len(r.spans) {
+					r.spans = append(r.spans, newSkipLists(downIdx))
 
-					} else if r.spans[downIdx].size >= maxItemCount {
+				} else if r.spans[downIdx].size >= maxItemCount {
 
-						if len(r.spans) < cap(r.spans) {
+					if len(r.spans) < cap(r.spans) {
 
-							//还有空间,扩张containers,将downIdx开始的元素往后挪一个位置，空出downIdx所在位置
-							l := len(r.spans)
-							r.spans = r.spans[:len(r.spans)+1]
-							for i := l - 1; i >= downIdx; i-- {
-								r.spans[i+1] = r.spans[i]
-								r.spans[i+1].idx = i + 1
-							}
-							r.spans[downIdx] = newSkipLists(downIdx)
-
-						} else {
-
-							//下一个container满了，新建一个
-							spans := make([]*skiplists, 0, len(r.spans)+1)
-							for i := 0; i <= downIdx-1; i++ {
-								spans = append(spans, r.spans[i])
-							}
-
-							spans = append(spans, newSkipLists(len(spans)))
-
-							for i := downIdx; i < len(r.spans); i++ {
-								c := r.spans[i]
-								c.idx = len(spans)
-								spans = append(spans, c)
-							}
-
-							r.spans = spans
+						//还有空间,扩张containers,将downIdx开始的元素往后挪一个位置，空出downIdx所在位置
+						l := len(r.spans)
+						r.spans = r.spans[:len(r.spans)+1]
+						for i := l - 1; i >= downIdx; i-- {
+							r.spans[i+1] = r.spans[i]
+							r.spans[i+1].idx = i + 1
 						}
+						r.spans[downIdx] = newSkipLists(downIdx)
+
+					} else {
+
+						//下一个container满了，新建一个
+						spans := make([]*skiplists, 0, len(r.spans)+1)
+						for i := 0; i <= downIdx-1; i++ {
+							spans = append(spans, r.spans[i])
+						}
+
+						spans = append(spans, newSkipLists(len(spans)))
+
+						for i := downIdx; i < len(r.spans); i++ {
+							c := r.spans[i]
+							c.idx = len(spans)
+							spans = append(spans, c)
+						}
+
+						r.spans = spans
 					}
 				}
-
 				downItem = r.down(r.spans[downIdx], downItem)
-
 			}
 		}
 
