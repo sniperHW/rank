@@ -44,7 +44,7 @@ func TestBenchmarkRank2(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg), len(r.id2Item))
-		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		//fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 	}
 }
 
@@ -67,7 +67,7 @@ func TestBenchmarkRank1(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		//fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
 
@@ -84,7 +84,7 @@ func TestBenchmarkRank1(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		//fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
 
@@ -103,7 +103,7 @@ func TestBenchmarkRank1(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		//fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
 

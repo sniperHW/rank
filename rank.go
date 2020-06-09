@@ -4,6 +4,7 @@ import (
 //"fmt"
 )
 
+/*
 const realRankCount int = 1000
 const maxItemCount int = 1000
 const vacancyRate int = 10 //空缺率10%
@@ -379,3 +380,4 @@ func (r *Rank) shrink(vacancy int, s *skiplists) {
 		}
 	}
 }
+*/
