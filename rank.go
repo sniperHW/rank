@@ -5,7 +5,7 @@ import (
 )
 
 const realRankCount int = 10000
-const maxItemCount int = 500
+const maxItemCount int = 10000
 const vacancyRate int = 10 //空缺率10%
 const vacancy int = maxItemCount * vacancyRate / 100
 
@@ -140,6 +140,18 @@ func (r *Rank) GetExactRank(id uint64) int {
 }
 
 func (r *Rank) Check() bool {
+	if len(r.spans) == 0 {
+		return true
+	}
+	vv := r.spans[0].max
+	for i, v := range r.spans {
+		vv = v.check(vv)
+		if vv == -1 && i > 0 {
+			r.spans[i-1].show()
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -198,6 +210,7 @@ func (r *Rank) add(sl *skiplists, item *node) (*node, int) {
 		sl.fixMinMax()
 		return tail, rank
 	} else {
+		sl.fixMinMax()
 		return nil, rank
 	}
 }
@@ -210,6 +223,7 @@ func (r *Rank) down(sl *skiplists, item *node) *node {
 		sl.fixMinMax()
 		return tail
 	} else {
+		sl.fixMinMax()
 		return nil
 	}
 }

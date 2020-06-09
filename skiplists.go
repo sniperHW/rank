@@ -46,9 +46,18 @@ func newSkipLists(idx int) *skiplists {
 }
 
 func (sl *skiplists) fixMinMax() {
-	if sl.size != 0 {
+	/*if sl.size < 0 {
+		panic("sl.size <0")
+	}*/
+
+	if sl.size > 0 {
 		sl.max = sl.head.links[0].pnext.value
 		sl.min = sl.tail.links[0].pprev.value
+		/*if sl.max == 0 || sl.min == 0 {
+			sl.show()
+			fmt.Println("sl.size", sl.idx, sl.size)
+			panic("error")
+		}*/
 	} else {
 		sl.max = 0
 		sl.min = 0
@@ -56,7 +65,10 @@ func (sl *skiplists) fixMinMax() {
 }
 
 func (sl *skiplists) show() {
-	for i := 0; i <= sl.level; i++ {
+
+	fmt.Println("max", sl.max, "min", sl.min, sl.head.links[0].pnext.value, sl.tail.links[0].pprev.value)
+
+	for i := 0; i <= 0; /*sl.level*/ i++ {
 		cur := sl.head.links[i].pnext
 		s := []string{}
 		s = append(s, fmt.Sprintf("head skip:%d", sl.head.links[i].skip))
@@ -75,6 +87,28 @@ func (sl *skiplists) randomLevel() int {
 		lvl++
 	}
 	return lvl
+}
+
+func (sl *skiplists) check(v int) int {
+	c := 0
+	cur := sl.head.links[0].pnext
+	for &sl.tail != cur {
+		if cur.value > v {
+			//sl.show()
+			//fmt.Println("check failed1", sl.idx, cur.value, v)
+			return -1
+		}
+		v = cur.value
+		c++
+		cur = cur.links[0].pnext
+	}
+
+	if c != sl.size {
+		//fmt.Println("check failed2", c, sl.size)
+		return -1
+	} else {
+		return v
+	}
 }
 
 /*
@@ -263,11 +297,11 @@ func (sl *skiplists) DeleteNode(n *node) {
 				} else {
 					update[i].links[i].skip = 0
 				}
-				n.links[i].pnext = nil
-				n.links[i].pprev = nil
-				n.links[i].skip = 0
 			}
 		}
+		n.links[i].pnext = nil
+		n.links[i].pprev = nil
+		n.links[i].skip = 0
 	}
 
 	for sl.level >= 0 && sl.head.links[sl.level].pnext == &sl.tail {
