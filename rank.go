@@ -5,7 +5,7 @@ import (
 )
 
 const realRankCount int = 10000
-const maxItemCount int = 1000
+const maxItemCount int = 500
 const vacancyRate int = 10 //空缺率10%
 const vacancy int = maxItemCount * vacancyRate / 100
 
