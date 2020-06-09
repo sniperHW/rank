@@ -7,6 +7,7 @@ import (
 
 const maxItemCount int = 100
 const realRankIdx int = 100
+const realRankCount int = maxItemCount * realRankIdx
 
 const vacancyRate int = 10 //空缺率10%
 const vacancy int = maxItemCount * vacancyRate / 100
@@ -305,6 +306,7 @@ func (r *Rank) GetPercentRank(id uint64) int {
 	}
 }
 
+/*
 func (r *Rank) getFrontSpanItemCount(item *rankItem) int {
 	c := 0
 	if item.c.idx < realRankIdx {
@@ -314,6 +316,29 @@ func (r *Rank) getFrontSpanItemCount(item *rankItem) int {
 	} else {
 		c = 100 * item.c.idx
 	}
+	return c
+}
+*/
+
+func (r *Rank) getFrontSpanItemCount(item *rankItem) int {
+	c := 0
+	i := 0
+	for ; i < len(r.spans); i++ {
+		v := r.spans[i]
+		if item.c == v {
+			break
+		} else {
+			c += v.count
+			if c >= realRankCount {
+				break
+			}
+		}
+	}
+
+	if i < item.c.idx {
+		c += maxItemCount * (item.c.idx - i)
+	}
+
 	return c
 }
 
