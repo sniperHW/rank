@@ -39,7 +39,7 @@ func TestBenchmarkRank2(t *testing.T) {
 	}
 }
 
-func TestBenchmarkRank(t *testing.T) {
+func TestBenchmarkRank1(t *testing.T) {
 	var r *Rank = NewRank()
 	fmt.Println("TestBenchmarkRank")
 
@@ -119,7 +119,7 @@ func TestBenchmarkRank(t *testing.T) {
 		bar := progressbar.New(int(testCount))
 		beg := time.Now()
 		for i := 0; i < testCount; i++ {
-			idx := (rand.Int() % len(r.id2Item)) + 1
+			idx := i%idRange + 1
 			item := r.id2Item[uint64(idx)]
 			score := rand.Int() % 10000
 			score = item.score + score
@@ -169,7 +169,7 @@ func TestBenchmarkRank(t *testing.T) {
 
 		beg := time.Now()
 		for i := 0; i < testCount; i++ {
-			idx := i%idRange + 1
+			idx := (rand.Int() % idRange) + 1
 			r.GetPercentRank(uint64(idx))
 			bar.Add(1)
 		}
@@ -181,7 +181,7 @@ func TestBenchmarkRank(t *testing.T) {
 
 		beg := time.Now()
 		for i := 0; i < testCount; i++ {
-			idx := i%idRange + 1
+			idx := (rand.Int() % idRange) + 1
 			r.GetExactRank(uint64(idx))
 			bar.Add(1)
 		}

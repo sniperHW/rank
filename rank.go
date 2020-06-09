@@ -6,7 +6,7 @@ import (
 )
 
 const maxItemCount int = 100
-const realRankIdx int = 100
+const realRankIdx int = 1
 const realRankCount int = maxItemCount * realRankIdx
 
 const vacancyRate int = 10 //空缺率10%
@@ -482,7 +482,7 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 			for nil != downItem {
 				downIdx++
 				downCount++
-				if downIdx < realRankIdx || downCount <= 15 {
+				if /*downIdx < realRankIdx ||*/ downCount <= 15 {
 					if downIdx >= len(r.spans) {
 						r.spans = append(r.spans, newSpan(downIdx))
 					}
