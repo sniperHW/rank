@@ -4,9 +4,8 @@ import (
 //"fmt"
 )
 
-const realRankCount int = 10000
-const maxItemCount int = 5000
-const realRankIdx int = 10
+const realRankCount int = 1000
+const maxItemCount int = 1000
 const vacancyRate int = 10 //空缺率10%
 const vacancy int = maxItemCount * vacancyRate / 100
 
@@ -278,13 +277,14 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 			for nil != downItem {
 				downIdx++
 				downCount++
-				if /*downIdx < realRankIdx ||*/ downCount <= 15 {
+				if downCount <= 10 {
 					if downIdx >= len(r.spans) {
 						r.spans = append(r.spans, newSkipLists(downIdx))
 					}
 				} else {
 					if downIdx >= len(r.spans) {
 						r.spans = append(r.spans, newSkipLists(downIdx))
+
 					} else if r.spans[downIdx].size >= maxItemCount {
 
 						if len(r.spans) < cap(r.spans) {

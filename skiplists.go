@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const maxLevel int = 15
+const maxLevel int = 9
 
 type link struct {
 	pnext *node
