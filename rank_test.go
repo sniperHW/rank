@@ -131,6 +131,7 @@ func TestBenchmarkRank1(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 	}
 }
 

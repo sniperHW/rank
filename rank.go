@@ -62,6 +62,14 @@ func (r *Rank) getExactRank(item *node) int {
 }
 
 func (r *Rank) GetExactRank(id uint64) int {
+
+	r.cc++
+	defer func() {
+		if r.cc%100 == 0 {
+			r.shrink(nil)
+		}
+	}()
+
 	item := r.getRankItem(id)
 	if nil == item {
 		return -1

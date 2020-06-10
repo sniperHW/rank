@@ -78,7 +78,7 @@ func (sl *skiplists) show() {
 
 func (sl *skiplists) randomLevel() int {
 	lvl := 0
-	for rand.Float32() < 0.7 && lvl < maxLevel-1 {
+	for rand.Float32() < 0.65 && lvl < maxLevel-1 {
 		lvl++
 	}
 	return lvl
