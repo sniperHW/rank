@@ -170,7 +170,7 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 
 	rank = c.InsertNode(item)
 
-	if c.size > maxItemCount {
+	if c.size > maxItemCount+maxItemCount/2 {
 
 		if o := c.split(); nil != o {
 
@@ -247,7 +247,7 @@ func (r *Rank) shrink(s *skiplists) {
 		}
 	}
 
-	if s.idx+1 < len(r.spans) && s.size+r.spans[s.idx+1].size < maxItemCount {
+	if s.idx+1 < len(r.spans) && s.size+r.spans[s.idx+1].size <= maxItemCount /*+maxItemCount/5*/ {
 		n := r.spans[s.idx+1]
 		s.merge(n)
 		s.fixMinMax()
