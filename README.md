@@ -9,11 +9,7 @@
 
 ### 更新
 
-排行榜由span数组构成，每个span由skiplists组成，链表元素为rankItem,每个span上限为500(可自己设定，500是较优值),span内元素按积分从高到低排列。
-span有序，因此整个span数组也是有序的。
-
-当rankItem更新时，使用二分查找查询rankItem所属span,将rankItem插入到span内合适的位置，如果插入后span超过容量限制，在后面创新一个新的span把溢出
-的rankItem插入到新建的span中。
+排行榜由span数组构成，每个span由skiplists组成，链表元素为rankItem,span内元素按积分从高到低排列。span有序，因此整个span数组也是有序的。
 
 每次更新的消耗为通过id查找item(nlog(n)) + 二分法查找span(log(n)) + span内查找插入位置的时间(常数)
 
@@ -29,3 +25,7 @@ span的遍历累加非常耗时，因此只有前10000名(前100个span,此数�
 ### 百分比排名查询
 
 rankItem数组span下标/span数组长度
+
+### span的分裂及合并
+
+当span大小超过预设值后，对span进行分裂，避免单个span容量太大。每隔一定的操作后，尝试将两个小的span合并为一个大的span。

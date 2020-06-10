@@ -62,12 +62,12 @@ func TestBenchmarkRank1(t *testing.T) {
 		for i := 0; i < testCount; i++ {
 			idx := i%idRange + 1
 			score := rand.Int()%1000000 + 1
-			//fmt.Println(idx, score)
+			//fmt.Println(i, idx, score)
 			r.UpdateScore(uint64(idx), score)
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		//fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
 
@@ -84,7 +84,7 @@ func TestBenchmarkRank1(t *testing.T) {
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		//fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
 
@@ -99,54 +99,39 @@ func TestBenchmarkRank1(t *testing.T) {
 			item := r.id2Item[uint64(idx)]
 			score := rand.Int()%10000 + 1
 			score = item.value + score
+			//fmt.Println(idx, score)
 			r.UpdateScore(uint64(idx), score)
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
-		//fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
+		fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
 		assert.Equal(t, true, r.Check())
 	}
 
-	/*	{
+	{
 
-			testCount := 10000000
+		bar := progressbar.New(int(testCount))
 
-			bar := progressbar.New(int(testCount))
-			beg := time.Now()
-			for i := 0; i < testCount; i++ {
-				r.shrink(0, nil)
-				bar.Add(1)
-			}
-			fmt.Println(time.Now().Sub(beg))
-			fmt.Println(len(r.spans), len(r.id2Item)/len(r.spans))
-			assert.Equal(t, true, r.Check())
+		beg := time.Now()
+		for i := 0; i < testCount; i++ {
+			idx := i%idRange + 1
+			r.GetPercentRank(uint64(idx))
+			bar.Add(1)
 		}
+		fmt.Println(time.Now().Sub(beg))
+	}
 
-		{
+	{
+		bar := progressbar.New(int(testCount))
 
-			bar := progressbar.New(int(testCount))
-
-			beg := time.Now()
-			for i := 0; i < testCount; i++ {
-				idx := i%idRange + 1
-				r.GetPercentRank(uint64(idx))
-				bar.Add(1)
-			}
-			fmt.Println(time.Now().Sub(beg))
+		beg := time.Now()
+		for i := 0; i < testCount; i++ {
+			idx := i%idRange + 1
+			r.GetExactRank(uint64(idx))
+			bar.Add(1)
 		}
-
-		{
-			bar := progressbar.New(int(testCount))
-
-			beg := time.Now()
-			for i := 0; i < testCount; i++ {
-				idx := i%idRange + 1
-				r.GetExactRank(uint64(idx))
-				bar.Add(1)
-			}
-			fmt.Println(time.Now().Sub(beg))
-		}
-	*/
+		fmt.Println(time.Now().Sub(beg))
+	}
 }
 
 func TestRank(t *testing.T) {
