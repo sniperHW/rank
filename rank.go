@@ -7,29 +7,93 @@ import (
 const realRankCount int = 1000
 const maxItemCount int = 1000
 
+type rankItemBlock struct {
+	items    []node
+	nextFree int
+}
+
+func (rb *rankItemBlock) get() *node {
+	if rb.nextFree >= cap(rb.items) {
+		return nil
+	} else {
+		item := &rb.items[rb.nextFree]
+		rb.nextFree++
+		return item
+	}
+}
+func (rb *rankItemBlock) reset() {
+	for i, _ := range rb.items {
+		item := &rb.items[i]
+		item.sl = nil
+		for j := 0; j < maxLevel; j++ {
+			item.links[j].skip = 0
+			item.links[j].pnext, item.links[j].pprev = nil, nil
+		}
+	}
+	rb.nextFree = 0
+}
+func newRankItemBlock() *rankItemBlock {
+	return &rankItemBlock{
+		items: make([]node, 10000),
+	}
+}
+
+type rankItemPool struct {
+	blocks   []*rankItemBlock
+	nextFree int
+}
+
+func newRankItemPool() *rankItemPool {
+	return &rankItemPool{
+		blocks: []*rankItemBlock{newRankItemBlock()},
+	}
+}
+func (rp *rankItemPool) reset() {
+	for _, v := range rp.blocks {
+		v.reset()
+	}
+	rp.nextFree = 0
+}
+func (rp *rankItemPool) get() *node {
+	item := rp.blocks[rp.nextFree].get()
+	if nil == item {
+		block := newRankItemBlock()
+		rp.blocks = append(rp.blocks, block)
+		rp.nextFree++
+		item = block.get()
+	}
+	item.sl = nil
+	return item
+}
+
 type Rank struct {
 	id2Item   map[uint64]*node
 	spans     []*skiplists
 	nextShink int
 	cc        int
+	itemPool  *rankItemPool
 }
 
 func NewRank() *Rank {
 	return &Rank{
-		id2Item: map[uint64]*node{},
-		spans:   make([]*skiplists, 0, 8192),
+		id2Item:  map[uint64]*node{},
+		spans:    make([]*skiplists, 0, 8192),
+		itemPool: newRankItemPool(),
 	}
 }
 
 func (r *Rank) Reset() {
 	r.id2Item = map[uint64]*node{}
 	r.spans = make([]*skiplists, 0, 8192)
+	r.itemPool.reset()
 }
 
 func (r *Rank) GetPercentRank(id uint64) int {
 	item := r.getRankItem(id)
 	if nil == item {
 		return -1
+	} else if len(r.spans) < 100 {
+		return 100 - r.getExactRank(item)*100/maxItemCount*len(r.spans)
 	} else {
 		return 100 - maxItemCount*item.sl.idx/(len(r.spans)-1)
 	}
@@ -155,7 +219,7 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 
 	item := r.getRankItem(id)
 	if nil == item {
-		item = &node{}
+		item = r.itemPool.get() //&node{}
 		r.id2Item[id] = item
 	} else {
 		if item.value == score {
@@ -236,9 +300,9 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 
 			r.spans[len(r.spans)-1] = nil
 			r.spans = r.spans[:len(r.spans)-1]
-		} /* else if oldC.idx != item.sl.idx && maxItemCount-oldC.size > vacancy {
-			r.shrink(vacancy, oldC)
-		}*/
+		} else if oldC.idx != item.sl.idx && oldC.idx+1 < len(r.spans) && oldC.size+r.spans[oldC.idx+1].size <= maxItemCount {
+			r.shrink(oldC)
+		}
 	}
 
 	return rank + r.getFrontSpanItemCount(item)
