@@ -88,12 +88,28 @@ func (r *Rank) Reset() {
 	r.itemPool.reset()
 }
 
-func (r *Rank) GetPercentRank(id uint64) int {
+func (r *Rank) getRankPersent(item *node, idxInSpan int) int {
+	if len(r.spans) < 100 {
+		return 100 - idxInSpan*100/maxItemCount*len(r.spans)
+	} else {
+		return 100 - maxItemCount*item.sl.idx/(len(r.spans)-1)
+	}
+}
+
+func (r *Rank) getRankPersentByItem(item *node) int {
+	if len(r.spans) < 100 {
+		return 100 - r.getRank(item)*100/maxItemCount*len(r.spans)
+	} else {
+		return 100 - maxItemCount*item.sl.idx/(len(r.spans)-1)
+	}
+}
+
+func (r *Rank) GetRankPersent(id uint64) int {
 	item := r.getRankItem(id)
 	if nil == item {
 		return -1
 	} else if len(r.spans) < 100 {
-		return 100 - r.getExactRank(item)*100/maxItemCount*len(r.spans)
+		return 100 - r.getRank(item)*100/maxItemCount*len(r.spans)
 	} else {
 		return 100 - maxItemCount*item.sl.idx/(len(r.spans)-1)
 	}
@@ -121,11 +137,11 @@ func (r *Rank) getFrontSpanItemCount(item *node) int {
 	return c
 }
 
-func (r *Rank) getExactRank(item *node) int {
+func (r *Rank) getRank(item *node) int {
 	return r.getFrontSpanItemCount(item) + item.sl.GetNodeRank(item)
 }
 
-func (r *Rank) GetExactRank(id uint64) int {
+func (r *Rank) GetRank(id uint64) int {
 
 	r.cc++
 	defer func() {
@@ -138,7 +154,7 @@ func (r *Rank) GetExactRank(id uint64) int {
 	if nil == item {
 		return -1
 	} else {
-		return r.getExactRank(item)
+		return r.getRank(item)
 	}
 }
 
@@ -205,7 +221,8 @@ func (r *Rank) findSpan(score int) *skiplists {
 	return c
 }
 
-func (r *Rank) UpdateScore(id uint64, score int) int {
+//返回排名和排名百分比
+func (r *Rank) UpdateScore(id uint64, score int) (int, int) {
 
 	r.cc++
 
@@ -219,11 +236,11 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 
 	item := r.getRankItem(id)
 	if nil == item {
-		item = r.itemPool.get() //&node{}
+		item = r.itemPool.get()
 		r.id2Item[id] = item
 	} else {
 		if item.value == score {
-			return r.getExactRank(item)
+			return r.getRank(item), r.getRankPersentByItem(item)
 		}
 	}
 
@@ -305,7 +322,7 @@ func (r *Rank) UpdateScore(id uint64, score int) int {
 		}
 	}
 
-	return rank + r.getFrontSpanItemCount(item)
+	return rank + r.getFrontSpanItemCount(item), r.getRankPersent(item, rank)
 }
 
 func (r *Rank) shrink(s *skiplists) {

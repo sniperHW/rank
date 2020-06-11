@@ -115,7 +115,7 @@ func TestBenchmarkRank1(t *testing.T) {
 		beg := time.Now()
 		for i := 0; i < testCount; i++ {
 			idx := i%idRange + 1
-			r.GetPercentRank(uint64(idx))
+			r.GetRankPersent(uint64(idx))
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
@@ -127,7 +127,7 @@ func TestBenchmarkRank1(t *testing.T) {
 		beg := time.Now()
 		for i := 0; i < testCount; i++ {
 			idx := i%idRange + 1
-			r.GetExactRank(uint64(idx))
+			r.GetRank(uint64(idx))
 			bar.Add(1)
 		}
 		fmt.Println(time.Now().Sub(beg))
