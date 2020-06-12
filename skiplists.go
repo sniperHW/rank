@@ -78,7 +78,7 @@ func (sl *skiplists) show() {
 
 func (sl *skiplists) randomLevel() int {
 	lvl := 0
-	for rand.Float32() < 0.65 && lvl < maxLevel-1 {
+	for rand.Float32() < 0.55 && lvl < maxLevel-1 {
 		lvl++
 	}
 	return lvl
@@ -483,13 +483,128 @@ func (sl *skiplists) merge(o *skiplists) {
 	}
 }
 
-//分裂
+/*
+ *  尽量将sl分成均匀的两段
+ *
+ *  如果分裂点不是最高level的节点，将其提升为最高level节点
+ */
+func (sl *skiplists) split() *skiplists {
+	half := sl.size / 2
+	if half >= 1 {
+		update := [maxLevel]*node{}
+		updateOffset := [maxLevel]int{}
+		c := 0
+		cur := &sl.head
+		lvl := sl.level
+		for {
+			cc := c + cur.links[lvl].skip
+			if cc > half {
+				update[lvl] = cur
+				lvl--
+				if lvl+1 <= sl.level {
+					updateOffset[lvl] = updateOffset[lvl+1]
+				}
+			} else if cc == half {
+				update[lvl] = cur
+				cur = cur.links[lvl].pnext
+				c = cc
+				break
+			} else {
+				c = cc
+				if cur.links[lvl].skip > 0 {
+					updateOffset[lvl] += cur.links[lvl].skip
+					cur = cur.links[lvl].pnext
+				} else {
+					update[lvl] = cur
+					lvl--
+					if lvl+1 <= sl.level {
+						updateOffset[lvl] = updateOffset[lvl+1]
+					}
+				}
+			}
+		}
+
+		//fmt.Println(c, updateOffset)
+
+		//将cur提升为最高level节点
+		for lvl := sl.level; lvl >= 0; lvl-- {
+			if update[lvl].links[lvl].pnext == cur {
+				break
+			} else {
+				next := update[lvl].links[lvl].pnext
+
+				next.links[lvl].pprev = cur
+				cur.links[lvl].pnext = next
+
+				if update[lvl].links[lvl].skip > 0 {
+					nextOffset := updateOffset[lvl] + update[lvl].links[lvl].skip
+					cur.links[lvl].skip = nextOffset - c
+				} else {
+					cur.links[lvl].skip = 0
+				}
+
+				update[lvl].links[lvl].pnext = cur
+				cur.links[lvl].pprev = update[lvl]
+				update[lvl].links[lvl].skip = c - updateOffset[lvl]
+			}
+		}
+
+		if !sl.checkLink() {
+			panic("1234")
+		}
+
+		//分裂
+		saveLast := [maxLevel]*node{}
+		for i := 0; i <= sl.level; i++ {
+			saveLast[i] = sl.tail.links[i].pprev
+
+			pre := cur.links[i].pprev
+			pre.links[i].skip = 0
+			pre.links[i].pnext = &sl.tail
+			sl.tail.links[i].pprev = pre
+		}
+
+		o := newSkipLists(0)
+		o.level = sl.level
+		o.size = sl.size - c + 1
+		sl.size = c - 1
+
+		for i := 0; i <= o.level; i++ {
+
+			last := saveLast[i]
+			o.head.links[i].pnext = cur
+			cur.links[i].pprev = &o.head
+			o.head.links[i].skip = 1
+			last.links[i].pnext = &o.tail
+			o.tail.links[i].pprev = last
+			last.links[i].skip = 0
+		}
+
+		cur = o.head.links[0].pnext
+		for cur != &o.tail {
+			cur.sl = o
+			cur = cur.links[0].pnext
+		}
+
+		for sl.level > 0 && sl.head.links[sl.level].pnext == &sl.tail {
+			sl.level--
+		}
+
+		return o
+
+	} else {
+		return nil
+	}
+}
+
+/*
 func (sl *skiplists) split() *skiplists {
 	half := sl.size / 2
 	if half >= 1 {
 		c := 0
 		cur := &sl.head
-		for cur != &sl.tail {
+
+		for {
 			if cur.links[sl.level].pnext == &sl.tail {
 				break
 			} else {
@@ -547,3 +662,4 @@ func (sl *skiplists) split() *skiplists {
 		return nil
 	}
 }
+*/
