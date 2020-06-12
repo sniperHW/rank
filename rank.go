@@ -238,14 +238,14 @@ func (r *Rank) UpdateScore(id uint64, score int) (int, int) {
 	if nil == item {
 		item = r.itemPool.get()
 		r.id2Item[id] = item
+		item.value = id
 	} else {
-		if item.value == score {
+		if item.key == score {
 			return r.getRank(item), r.getRankPersentByItem(item)
 		}
 	}
 
-	item.key = 0 - score
-	item.value = score
+	item.key = score
 
 	c := r.findSpan(score)
 

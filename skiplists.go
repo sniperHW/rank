@@ -16,7 +16,7 @@ type link struct {
 
 type node struct {
 	key   int
-	value int
+	value uint64
 	links [maxLevel]link
 	sl    *skiplists
 }
@@ -47,8 +47,8 @@ func newSkipLists(idx int) *skiplists {
 
 func (sl *skiplists) fixMinMax() {
 	if sl.size > 0 {
-		sl.max = sl.head.links[0].pnext.value
-		sl.min = sl.tail.links[0].pprev.value
+		sl.max = sl.head.links[0].pnext.key
+		sl.min = sl.tail.links[0].pprev.key
 	} else {
 		sl.max = 0
 		sl.min = 0
@@ -57,7 +57,7 @@ func (sl *skiplists) fixMinMax() {
 
 func (sl *skiplists) show() {
 
-	fmt.Println("size", sl.size, "max", sl.max, "min", sl.min, sl.head.links[0].pnext.value, sl.tail.links[0].pprev.value)
+	fmt.Println("size", sl.size, "max", sl.max, "min", sl.min)
 
 	for i := 0; i <= sl.level; i++ {
 		cur := sl.head.links[i].pnext
@@ -118,7 +118,7 @@ func (sl *skiplists) checkLink() bool {
 			}
 
 			if n != a[idx-1] {
-				fmt.Println("level", i, "idx", idx, n.value, a[idx-1].value)
+				fmt.Println("level", i, "idx", idx, n.key, a[idx-1].key)
 				sl.show()
 				panic("xxxxxxxxxxx1")
 				return false
@@ -129,7 +129,7 @@ func (sl *skiplists) checkLink() bool {
 
 		if cur != tailPre {
 			sl.show()
-			fmt.Println("cur", cur.value, tailPre.value)
+			fmt.Println("cur", cur.key, tailPre.key)
 			panic("cur != tailPre")
 		}
 	}
@@ -146,10 +146,10 @@ func (sl *skiplists) check(v int) int {
 	c := 0
 	cur := sl.head.links[0].pnext
 	for &sl.tail != cur {
-		if cur.value > v {
+		if cur.key > v {
 			return -1
 		}
-		v = cur.value
+		v = cur.key
 		c++
 		cur = cur.links[0].pnext
 	}
@@ -196,7 +196,7 @@ func (sl *skiplists) InsertNode(n *node) int {
 			updateOffset[i] = updateOffset[i+1]
 		}
 
-		for &sl.tail != x.links[i].pnext && x.links[i].pnext.key < key {
+		for &sl.tail != x.links[i].pnext && x.links[i].pnext.key > key {
 			updateOffset[i] += x.links[i].skip
 			x = x.links[i].pnext
 			sl.step++

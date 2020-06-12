@@ -38,7 +38,7 @@ func TestBenchmarkRank2(t *testing.T) {
 			if nil == item {
 				score = rand.Int() % 1000000
 			} else {
-				score = item.value + rand.Int()%10000
+				score = item.key + rand.Int()%10000
 			}
 			r.UpdateScore(uint64(idx), score)
 			bar.Add(1)
@@ -98,7 +98,7 @@ func TestBenchmarkRank1(t *testing.T) {
 			idx := (rand.Int() % len(r.id2Item)) + 1
 			item := r.id2Item[uint64(idx)]
 			score := rand.Int()%10000 + 1
-			score = item.value + score
+			score = item.key + score
 			//fmt.Println(idx, score)
 			r.UpdateScore(uint64(idx), score)
 			bar.Add(1)

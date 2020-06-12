@@ -26,7 +26,7 @@ func TestSkipLists(t *testing.T) {
 			for i := 0; i < rand.Int()%100; i++ {
 				nodes = append(nodes, &node{
 					key:   rand.Int() % 10000,
-					value: i + i,
+					value: uint64(i + i),
 				})
 			}
 
@@ -44,7 +44,7 @@ func TestSkipLists(t *testing.T) {
 			for i := 0; i < rand.Int()%100; i++ {
 				nodes = append(nodes, &node{
 					key:   rand.Int() % 10000,
-					value: i + i,
+					value: uint64(i + i),
 				})
 			}
 
