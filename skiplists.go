@@ -277,7 +277,27 @@ func (sl *skiplists) DeleteNode(n *node) {
 	x := n
 	lvl := 0
 
-	for x != nil {
+	for {
+
+		if nil == update[lvl] {
+			if x == n {
+				update[lvl] = x.links[lvl].pprev
+			} else {
+				update[lvl] = x
+			}
+		}
+
+		if lvl+1 > sl.level {
+			break
+		} else if nil != x.links[lvl+1].pprev || nil != x.links[lvl+1].pnext {
+			lvl++
+		} else {
+			x = x.links[lvl].pprev
+		}
+
+	}
+
+	/*for x != nil {
 		pprev := x.links[lvl].pprev
 
 		if (x.links[lvl].pprev != nil || x.links[lvl].pnext != nil) && nil == update[lvl] {
@@ -300,7 +320,7 @@ func (sl *skiplists) DeleteNode(n *node) {
 		} else {
 			x = pprev
 		}
-	}
+	}*/
 
 	for i := 0; i <= sl.level; i++ {
 		if nil == update[i] {
