@@ -62,7 +62,6 @@ func (rp *rankItemPool) get() *node {
 		rp.nextFree++
 		item = block.get()
 	}
-	item.sl = nil
 	return item
 }
 
