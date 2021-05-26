@@ -7,13 +7,14 @@ package rank
 
 import (
 	"fmt"
-	"github.com/schollz/progressbar"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
 	"testing"
 	"time"
+
+	"github.com/schollz/progressbar"
+	"github.com/stretchr/testify/assert"
 )
 
 func init() {
@@ -149,9 +150,6 @@ func TestRank(t *testing.T) {
 		score := rand.Int() % 10000
 		r.UpdateScore(uint64(idx), score)
 	}
-
-	r.Show()
-
 }
 
 func BenchmarkRank(b *testing.B) {

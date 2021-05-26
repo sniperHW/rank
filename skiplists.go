@@ -3,7 +3,6 @@ package rank
 import (
 	"fmt"
 	"math/rand"
-	"strings"
 )
 
 const maxLevel int = 15
@@ -55,27 +54,6 @@ func (sl *skiplists) fixMinMax() {
 	}
 }
 
-func (sl *skiplists) show() {
-
-	fmt.Println("size", sl.size, "max", sl.max, "min", sl.min)
-
-	for i := 0; i <= sl.level; i++ {
-		cur := sl.head.links[i].pnext
-		s := []string{}
-		s = append(s, fmt.Sprintf("head skip:%d", sl.head.links[i].skip))
-		for &sl.tail != cur {
-			if nil == cur.links[i].pnext {
-				fmt.Println(cur.key, cur.value)
-			}
-
-			s = append(s, fmt.Sprintf("(key:%d,value:%d,skip:%d)", cur.key, cur.value, cur.links[i].skip))
-			cur = cur.links[i].pnext
-		}
-		fmt.Println("level", i+1, strings.Join(s, ","))
-	}
-	fmt.Println("--------------------------------------------------------------------------")
-}
-
 func (sl *skiplists) randomLevel() int {
 	lvl := 0
 	for rand.Float32() < 0.55 && lvl < maxLevel-1 {
@@ -113,14 +91,11 @@ func (sl *skiplists) checkLink() bool {
 			n := cur.links[i].pnext
 			idx += cur.links[i].skip
 			if idx-1 >= sl.size {
-				fmt.Println(i, cur.key)
-				panic("xxxxxx")
+				panic("idx-1 >= sl.size")
 			}
 
 			if n != a[idx-1] {
-				fmt.Println("level", i, "idx", idx, n.key, a[idx-1].key)
-				sl.show()
-				panic("xxxxxxxxxxx1")
+				panic("n != a[idx-1]")
 				return false
 			}
 
@@ -128,8 +103,6 @@ func (sl *skiplists) checkLink() bool {
 		}
 
 		if cur != tailPre {
-			sl.show()
-			fmt.Println("cur", cur.key, tailPre.key)
 			panic("cur != tailPre")
 		}
 	}
@@ -160,25 +133,6 @@ func (sl *skiplists) check(v int) int {
 		return v
 	}
 }
-
-/*
-
-func (sl *skiplists) Search(key int) *node {
-	x := &sl.head
-	for i := sl.level; i >= 0; i-- {
-		for nil != x.links[i].pnext && x.links[i].pnext.key < key {
-			x = x.links[i].pnext
-		}
-	}
-
-	x = x.links[0].pnext
-
-	if nil != x && x.key == key {
-		return x
-	} else {
-		return nil
-	}
-}*/
 
 /////////////////////////使用node的接口
 
@@ -237,8 +191,7 @@ func (sl *skiplists) InsertNode(n *node) int {
 			if x.links[i].pnext != &sl.tail {
 				x.links[i].skip = (updateOffset[i] + oldSkip + 1) - offset0
 				if x.links[i].skip < 0 {
-					fmt.Println("ssss", sl.idx)
-					panic("3")
+					panic("x.links[i].skip < 0")
 				}
 			} else {
 				x.links[i].skip = 0
@@ -251,10 +204,6 @@ func (sl *skiplists) InsertNode(n *node) int {
 
 	sl.size++
 	n.sl = sl
-
-	/*if !sl.checkLink() {
-		panic("InsertNode checkLink failed")
-	}*/
 
 	return offset0 - 1
 }
@@ -296,31 +245,6 @@ func (sl *skiplists) DeleteNode(n *node) {
 		}
 
 	}
-
-	/*for x != nil {
-		pprev := x.links[lvl].pprev
-
-		if (x.links[lvl].pprev != nil || x.links[lvl].pnext != nil) && nil == update[lvl] {
-			//当前节点是lvl链上的节点
-			if x == n {
-				update[lvl] = pprev
-			} else {
-				update[lvl] = x
-			}
-
-			if update[lvl].links[lvl].pnext != n && update[lvl].links[lvl].skip == 0 {
-				break
-			}
-
-		}
-
-		if lvl < sl.level && (nil != x.links[lvl+1].pprev || nil != x.links[lvl+1].pnext) {
-			//当前节点也在lvl+1的链上
-			lvl++
-		} else {
-			x = pprev
-		}
-	}*/
 
 	for i := 0; i <= sl.level; i++ {
 		if nil == update[i] {
@@ -381,43 +305,6 @@ func (sl *skiplists) GetNodeRank(n *node) int {
 
 	}
 
-	return rank
-}
-
-func (sl *skiplists) GetNodeRankCheck(n *node) int {
-
-	rank := 1
-
-	cur := sl.head.links[0].pnext
-	for cur != &sl.tail {
-		if cur == n {
-			break
-		} else {
-			rank++
-			cur = cur.links[0].pnext
-		}
-	}
-
-	if cur == &sl.tail {
-		return -1
-	}
-
-	/*x := n
-	var pprev *node
-	var lvl int
-
-	for pprev != &sl.head {
-		for i := sl.level; i >= 0; i-- {
-			pprev = x.links[i].pprev
-			if nil != pprev {
-				lvl = i
-				break
-			}
-		}
-		rank += pprev.links[lvl].skip
-		x = pprev
-
-	}*/
 	return rank
 }
 
@@ -543,9 +430,6 @@ func (sl *skiplists) split() *skiplists {
 				}
 			}
 		}
-
-		//fmt.Println(c, updateOffset)
-
 		//将cur提升为最高level节点
 		for lvl := sl.level; lvl >= 0; lvl-- {
 			if update[lvl].links[lvl].pnext == cur {
@@ -616,70 +500,3 @@ func (sl *skiplists) split() *skiplists {
 		return nil
 	}
 }
-
-/*
-func (sl *skiplists) split() *skiplists {
-	half := sl.size / 2
-	if half >= 1 {
-		c := 0
-		cur := &sl.head
-
-		for {
-			if cur.links[sl.level].pnext == &sl.tail {
-				break
-			} else {
-				c += cur.links[sl.level].skip
-				cur = cur.links[sl.level].pnext
-				if c >= half {
-					break
-				}
-			}
-		}
-
-		if cur.links[0].pprev == &sl.head {
-			return nil
-		}
-
-		saveLast := [maxLevel]*node{}
-		for i := 0; i <= sl.level; i++ {
-			saveLast[i] = sl.tail.links[i].pprev
-
-			pre := cur.links[i].pprev
-			pre.links[i].skip = 0
-			pre.links[i].pnext = &sl.tail
-			sl.tail.links[i].pprev = pre
-		}
-
-		o := newSkipLists(0)
-		o.level = sl.level
-		o.size = sl.size - c + 1
-		sl.size = c - 1
-
-		for i := 0; i <= o.level; i++ {
-
-			last := saveLast[i]
-			o.head.links[i].pnext = cur
-			cur.links[i].pprev = &o.head
-			o.head.links[i].skip = 1
-			last.links[i].pnext = &o.tail
-			o.tail.links[i].pprev = last
-			last.links[i].skip = 0
-		}
-
-		cur = o.head.links[0].pnext
-		for cur != &o.tail {
-			cur.sl = o
-			cur = cur.links[0].pnext
-		}
-
-		for sl.level > 0 && sl.head.links[sl.level].pnext == &sl.tail {
-			sl.level--
-		}
-
-		return o
-	} else {
-		fmt.Println("split failed", sl.size, sl.level)
-		return nil
-	}
-}
-*/

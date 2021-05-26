@@ -1,8 +1,6 @@
 package rank
 
-import (
 //"fmt"
-)
 
 const realRankCount int = 1000
 const maxItemCount int = 1000
@@ -165,18 +163,11 @@ func (r *Rank) Check() bool {
 	for i, v := range r.spans {
 		vv = v.check(vv)
 		if vv == -1 && i > 0 {
-			r.spans[i-1].show()
 			return false
 		}
 	}
 
 	return true
-}
-
-func (r *Rank) Show() {
-	for _, v := range r.spans {
-		v.show()
-	}
 }
 
 func (r *Rank) getRankItem(id uint64) *node {
@@ -335,7 +326,7 @@ func (r *Rank) shrink(s *skiplists) {
 		}
 	}
 
-	if s.idx+1 < len(r.spans) && s.size+r.spans[s.idx+1].size <= maxItemCount /*+maxItemCount/5*/ {
+	if s.idx+1 < len(r.spans) && s.size+r.spans[s.idx+1].size <= maxItemCount {
 		n := r.spans[s.idx+1]
 		s.merge(n)
 		s.fixMinMax()
